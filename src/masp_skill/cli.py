@@ -363,10 +363,13 @@ def run_codex_smoke(root: Path, output_dir: Path, *, all_roles: bool = False) ->
             if role == "masp-coordenador":
                 continue
             for prefix in ("delegation", "effective model/effort"):
+                critical = role == "masp-especialista-critico"
                 report["checks"].append({"name": f"{prefix} {role}", "classification": "RUNTIME",
-                                         "status": "BLOCKED", "model": configured.get("model"),
+                                         "status": "NOT_RUN" if critical else "BLOCKED",
+                                         "model": configured.get("model"),
                                          "effort": configured.get("effort"),
-                                         "reason": "Codex CLI executable was not found on PATH"})
+                                         "reason": ("Astra deliberately excluded from the initial smoke"
+                                                    if critical else "Codex CLI executable was not found on PATH")})
     else:
         for args, name in ((["--version"], "version"), (["--help"], "CLI help")):
             item = _run_smoke_command(report, [codex, *args], root)
@@ -480,7 +483,9 @@ def run_codex_smoke(root: Path, output_dir: Path, *, all_roles: bool = False) ->
                     "name": f"{prefix} {unprobed_role}",
                     "classification": "RUNTIME",
                     "status": "NOT_RUN",
-                    "reason": "minimal smoke checks one subagent only; use --all-roles to attempt complete coverage",
+                    "reason": ("Astra deliberately excluded; independent critical audit requires separate authorization"
+                               if unprobed_role == "masp-especialista-critico" else
+                               "noncritical role not tested in this run"),
                 })
         discovery_status = "BLOCKED" if (
             unprobed_roles or not delegated["process_completed"] or delegated["exit_code"] != 0
