@@ -1,70 +1,157 @@
-# MASP Skill: fluxo MASP local para Codex
+# MASP_Skill — investigação e solução de problemas com evidências
 
-Este repositório reúne uma matriz de roteamento, contratos para dez papéis, uma skill local e uma CLI Python para validar a configuração e registrar transições simuladas de casos MASP. A validação local não comprova que Codex carregou a skill ou descobriu os agentes. O smoke registrado em [`docs/masp/evidencias/codex-smoke.md`](docs/masp/evidencias/codex-smoke.md) confirma o catálogo consultado, mas deixa carregamento da skill e descoberta dos agentes como `BLOCKED`.
+**Um fluxo estruturado de melhoria e resolução de problemas técnicos, preparado para uso com o Codex.**
 
-## Começar um caso
+O **MASP_Skill** ajuda a transformar um problema mal definido — como uma falha de compilação, um teste que começou a falhar ou um defeito recorrente — em um processo rastreável: **descrever o problema → coletar evidências → analisar causas → planejar uma correção → executar com aprovação → verificar → prevenir recorrência → concluir**.
 
-No diretório raiz deste repositório, valide a matriz e crie um manifesto em local novo dentro do workspace:
+O projeto aplica as **oito etapas do MASP (Método de Análise e Solução de Problemas)**. Combina uma **skill local para Codex**, **contratos de dez papéis especializados** e uma **CLI Python** para validar configurações e registrar casos, decisões, evidências e critérios de passagem (*gates*).
 
-Prepare o pacote antes do primeiro comando da CLI:
+> **Em resumo:** este repositório fornece o **método e os mecanismos de registro e validação**. Ele **não é um agente autônomo** que encontra e corrige erros sozinho. O motor de casos simulados está coberto por testes; a execução real dos subagentes no Codex ainda requer comprovação no ambiente em que será utilizada.
+
+## Para que serve?
+
+O MASP_Skill é útil quando não basta “pedir para a IA corrigir um erro” e é necessário demonstrar **o que aconteceu, por que aconteceu, o que mudou e se a solução funcionou**.
+
+| Necessidade | Como o repositório ajuda |
+| --- | --- |
+| Investigar um erro sem tirar conclusões precipitadas | Orienta a coleta de baseline, logs, hipóteses e evidências |
+| Planejar uma correção com controle | Exige escopo, responsáveis, riscos, rollback, testes e registro de aprovação antes da ação |
+| Evitar que uma correção aparente seja considerada sucesso | Define gates e estados que distinguem `PASS`, `FAIL`, `BLOCKED` e `NOT_RUN` |
+| Organizar trabalho especializado | Declara um coordenador, oito papéis ligados às fases e um especialista crítico |
+| Documentar o histórico de um problema | Registra transições e referências a evidências em um *ledger* JSON com hashes SHA-256 |
+| Repetir um processo de análise | Oferece matriz TOML, modelo de caso, CLI e testes de regressão |
+
+**Público:** pessoas desenvolvedoras, equipes de qualidade, manutenção de software e responsáveis por investigações técnicas. O método pode ser adaptado a outros projetos; os caminhos e as configurações do Codex devem ser revistos em cada ambiente.
+
+### Exemplo prático: uma compilação falha
+
+Imagine que `g++ -c` encerre com código 1, mas o diagnóstico não tenha sido capturado.
+
+1. **Identificação:** registrar o erro, o impacto e o resultado esperado.
+2. **Observação:** coletar comando exato, ambiente, stdout, stderr e código de saída.
+3. **Análise:** comparar hipóteses, sem atribuir a causa ao código antes de verificar.
+4. **Plano de ação:** definir mudança mínima, riscos, rollback e critérios de teste.
+5. **Ação:** executar apenas a mudança aprovada, em ambiente isolado.
+6. **Verificação:** repetir o teste e comparar com a situação inicial.
+7. **Padronização:** registrar uma verificação de regressão para evitar recorrência.
+8. **Conclusão:** consolidar resultado, limitações e pendências.
+
+Há um [exemplo documentado de falha de compilação](docs/masp/exemplos/MASP-001-falha-gcc-c.md). Ele é **ilustrativo e ainda depende de reprodução**; o repositório não executou essa compilação nem alterou um OTServer.
+
+## Como funciona
+
+O processo segue **oito fases em sequência**. Cada fase possui entradas, entregas e requisitos de evidência para avançar.
+
+| Fase MASP | Entrega principal |
+| --- | --- |
+| 1. Identificação | Problema, impacto, escopo e métrica de sucesso |
+| 2. Observação | Baseline, ambiente e coleta reproduzível |
+| 3. Análise | Hipóteses avaliadas e causa sustentada ou inconclusão |
+| 4. Plano de ação | Tarefas, riscos, rollback, testes e registro de aprovação humana |
+| 5. Ação | Mudanças aprovadas, diff e comandos/resultados |
+| 6. Verificação | Comparação com baseline, testes e revisão independente |
+| 7. Padronização | Controle preventivo, responsável e regressão |
+| 8. Conclusão | Histórico consolidado, resultados e riscos residuais |
+
+A configuração declara **dez papéis**: um coordenador, oito especialistas das fases e um especialista crítico (Astra). A coordenação e os contratos estão documentados, mas **arquivos TOML não comprovam que o Codex criou ou executou esses agentes**. Gates e transições de caso são validados pela CLI; ações reais e autorizações dependem do ambiente e do processo de aprovação utilizado.
+
+## Comece pelo motor local (sem delegação de agentes)
+
+**Requisitos:** Python **3.11 ou superior** e Git. Execute os comandos a partir da raiz do repositório:
 
 ```powershell
-python -m pip install -e .
+git clone https://github.com/Marciorochar/MASP_Skill.git
+cd MASP_Skill
+python -m pip install -e ".[test]"
 ```
+
+**1. Verifique a matriz** de fases, papéis e regras:
 
 ```powershell
 python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC
-python -m masp_skill.cli new-case --id MASP-002 --output .tmp/MASP-002.json --root .
-python -m masp_skill.cli validate-case --case .tmp/MASP-002.json --root .
-python -m masp_skill.cli case-revision --case .tmp/MASP-002.json
 ```
 
-`new-case` recusa sobrescrever arquivo existente. O manifesto é `SIMULATED`: rótulos de ator, modelo, aprovação e papel não são autenticados. Guarde evidências em arquivos dentro do mesmo workspace. Uma transição requer um JSON de evidências e a revisão SHA-256 atual; veja a sintaxe completa com `python -m masp_skill.cli transition --help`. Não use uma transição simulada como prova de execução operacional.
-
-## Classificações e estados
-
-- `STATIC`: inspeção de arquivos/configuração ou validação estrutural pela CLI.
-- `SIMULATED`: exercício do motor de caso, transições e gates com rótulos fornecidos pelo chamador.
-- `RUNTIME`: comando ou comportamento executado no runtime, com comando, saída e código de saída registrados. `RUNTIME` sozinho não quer dizer sucesso: cada verificação também tem estado.
-- `BLOCKED`: havia uma verificação pretendida, mas uma condição impediu sua conclusão. `NOT_RUN`: a verificação não foi executada.
-
-Os estados do caso são `PENDING`, `IN_PROGRESS`, `PASS`, `FAIL`, `BLOCKED` e `NOT_RUN`. Somente o coordenador solicita transições; aprovação humana e identidade de modelo continuam sendo rótulos, não assinaturas verificadas.
-
-## Estrutura
-
-- [`docs/masp/masp-routing.toml`](docs/masp/masp-routing.toml): oito fases, dez papéis e políticas transversais.
-- [`.codex/`](.codex/): registro de configuração local e dez contratos de agentes.
-- [`.agents/skills/masp/SKILL.md`](.agents/skills/masp/SKILL.md): instruções da skill local.
-- [`src/masp_skill/`](src/masp_skill/): validação, ledger, evidências e CLI.
-- [`docs/masp/RELATORIO-IMPLEMENTACAO.md`](docs/masp/RELATORIO-IMPLEMENTACAO.md): inventário, decisões, testes, riscos e limites observados.
-- [`docs/masp/exemplos/MASP-CONFIG-SMOKE.md`](docs/masp/exemplos/MASP-CONFIG-SMOKE.md): leitura guiada da evidência atual do smoke.
-
-## Testes
-
-Instale o extra de desenvolvimento (`python -m pip install -e ".[test]"`) e rode `python -m pytest -q`. Isso testa código Python local; não reproduz descoberta de agentes nem carregamento da skill no Codex. O smoke runtime é separado e pode ser solicitado por `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_codex_smoke.ps1`; ele executa sondagens reais do CLI e produz evidência sob `docs/masp/evidencias/`.
-
-O piloto [`MASP-001`](docs/masp/exemplos/MASP-001-falha-gcc-c.md) é ilustrativo. Este repositório não reproduz a falha do OTServer, não altera seu código e não autoriza execução no servidor, banco ou binários.
-
-
-## PR #3 — Validação de robustez e smoke mínimo
-
-A skill descoberta pelo Codex tem fonte canônica em `.agents/skills/masp/SKILL.md`; `skills/masp/SKILL.md` é apenas um ponteiro de compatibilidade. Os testes adversariais verificam rejeição controlada de entradas JSON/TOML malformadas e o piloto de oito fases é um caso **SIMULATED** sem agentes reais.
-
-O smoke runtime é **opcional e manual**: por padrão tenta apenas um subagente em sandbox `read-only`, evitando sondar os oito papéis sem necessidade. Para uma execução autorizada, com o Codex instalado, use:
+**2. Crie um caso de demonstração**, em um caminho novo dentro do workspace:
 
 ```powershell
-python -m masp_skill.cli runtime-smoke --root . --output-dir docs/masp/evidencias --strict
+python -m masp_skill.cli new-case --id MASP-DEMO --output .tmp/MASP-DEMO.json --root .
 ```
 
-`--all-roles` amplia explicitamente a tentativa a todos os papéis e pode consumir muitos tokens. `--strict` retorna código diferente de zero quando existem checagens `FAIL` ou `BLOCKED`. Papéis não sondados são `NOT_RUN`; descoberta completa continua `BLOCKED`. O GitHub Actions não chama esse smoke e não executa inferência paga. Relatórios históricos de smoke não comprovam funcionamento das novas configurações.
+**3. Valide o registro e consulte a revisão SHA-256:**
 
+```powershell
+python -m masp_skill.cli validate-case --case .tmp/MASP-DEMO.json --root .
+python -m masp_skill.cli case-revision --case .tmp/MASP-DEMO.json
+```
 
-## PR #4 — Robustez e prova mínima de um agente
+O caso começa em `PENDING` (ou `BLOCKED` se a configuração declarar um modelo indisponível). Ele **não é concluído automaticamente**. Para registrar transições, prepare um JSON de evidências com arquivos dentro do workspace, obtenha a revisão atual e consulte:
 
-O replay rejeita estados JSON não hashable após `FAIL`, e o roteamento verifica a correspondência exata entre os oito nomes/IDs e os respectivos gates. A suíte inclui testes negativos específicos e validação do parser JSONL.
+```powershell
+python -m masp_skill.cli transition --help
+```
 
-O smoke mantém a tentativa padrão restrita a **um único agente não crítico** (`masp-identificador`). Ele inventaria os dez contratos, mas **não invoca o especialista crítico Astra**. `--all-roles` é uma opção de investigação posterior para os oito agentes de fase, exclui Astra e **não deve ser usada antes de comprovar a primeira delegação**. A presença de `wait` ou de um marcador textual não comprova `spawn_agent`; mesmo com receptor identificado, o modelo/esforço efetivos só podem ser declarados quando o runtime os emitir explicitamente.
+O comando `new-case` não sobrescreve arquivos existentes. As transições exigem evidências e verificação da revisão do manifesto para evitar atualizações sobre dados desatualizados. Os registros criados pela CLI são classificados como **`SIMULATED`**.
 
-`--parallel-tasks` valida apenas os caminhos de escrita das tarefas fornecidas. Não é um monitor de concorrência nem garante isolamento técnico das ações reais no Codex. As regras de agentes presentes no TOML continuam declarativas até serem observadas em runtime.
+Para testar a implementação Python:
 
-O procedimento local sem mudanças de produção está em [`docs/masp/VALIDACAO-RUNTIME-PR4.md`](docs/masp/VALIDACAO-RUNTIME-PR4.md) e a matriz de pendências em [`docs/masp/RELATORIO-AUDITORIA-PR4.md`](docs/masp/RELATORIO-AUDITORIA-PR4.md). Testes do GitHub Actions não equivalem a delegações reais.
+```powershell
+python -m pytest -q
+```
+
+A [CI do GitHub Actions](.github/workflows/ci.yml) executa testes em Windows e Ubuntu, além da validação estrutural da matriz e do caso de referência. **Esses testes não executam inferência de agentes Codex.**
+
+## Como utilizar com o Codex
+
+A entrada principal da skill está em [`.agents/skills/masp/SKILL.md`](.agents/skills/masp/SKILL.md). A [matriz TOML](docs/masp/masp-routing.toml) declara o roteamento das fases e [`.codex/config.toml`](.codex/config.toml) aponta para os contratos de papéis.
+
+Para experimentar a integração:
+
+1. Abra o checkout do projeto no Codex e confirme que a skill `masp` é descoberta e que o ambiente suporta os agentes configurados.
+2. Leia as instruções da skill e o [guia de integração](docs/masp/LEIA-ME.md). Se estiver adaptando o MASP a outro projeto, respeite o `AGENTS.md` já existente nesse projeto.
+3. Comece com **um único papel não crítico**, em sandbox somente leitura, antes de considerar outras delegações.
+
+O teste manual opcional é:
+
+```powershell
+python -m masp_skill.cli runtime-smoke --root . --output-dir .tmp/masp-runtime --strict
+```
+
+**Atenção:** esse comando pode invocar o Codex e consumir tokens. Execute somente em um ambiente autorizado. Por padrão, tenta no máximo **um subagente não crítico**; os demais permanecem `NOT_RUN`, incluindo o especialista Astra. O `--strict` retorna código diferente de zero quando há verificações `FAIL` ou `BLOCKED`. **Não use `--all-roles` no teste inicial.** Consulte o [procedimento de validação runtime](docs/masp/VALIDACAO-RUNTIME-PR4.md) antes de executar.
+
+Os caminhos de skills externas na matriz incluem referências locais da instalação original; adapte-os às dependências realmente disponíveis em seu computador, sem presumir que os plugins estão instalados.
+
+## O que significam os resultados?
+
+| Classificação | Significado |
+| --- | --- |
+| `STATIC` | Inspeção e validação estrutural de arquivos/configurações |
+| `SIMULATED` | Exercício do motor MASP, com eventos e identidades declarados pelo chamador |
+| `RUNTIME` | Evidência de comando/comportamento executado, que ainda precisa ser verificada quanto ao resultado |
+
+Os estados usados pelo motor são `PENDING`, `IN_PROGRESS`, `PASS`, `FAIL`, `BLOCKED` e `NOT_RUN`. **`PASS` exige o gate atendido; `BLOCKED` e `NOT_RUN` nunca significam sucesso.**
+
+### Limites atuais
+
+- O **motor Python e o fluxo MASP simulado** têm cobertura automatizada; o **carregamento real da skill, a delegação e o modelo/esforço efetivos dos agentes** ainda não foram comprovados em uma sessão runtime.
+- Hashes de eventos e evidências ajudam a verificar **integridade de conteúdo**, mas não autenticam a identidade de pessoas, aprovações ou agentes.
+- O controle de conflitos de escrita verifica **tarefas declaradas**; não substitui isolamento efetivo de permissões e sistema de arquivos.
+- O repositório **não realiza automaticamente alterações de produção**, nem autoriza acesso a serviços, servidores ou bancos de dados.
+
+## Onde encontrar cada parte
+
+| Recurso | Finalidade |
+| --- | --- |
+| [`.agents/skills/masp/SKILL.md`](.agents/skills/masp/SKILL.md) | Instruções do método para Codex |
+| [`docs/masp/masp-routing.toml`](docs/masp/masp-routing.toml) | Oito fases, papéis e políticas |
+| [`.codex/`](.codex/) | Configuração e dez contratos de agentes |
+| [`src/masp_skill/`](src/masp_skill/) | Motor de casos, validações, evidências e CLI Python |
+| [`docs/masp/modelos/CASO-MASP.md`](docs/masp/modelos/CASO-MASP.md) | Modelo de documentação de um problema |
+| [`docs/masp/LEIA-ME.md`](docs/masp/LEIA-ME.md) | Orientações de adaptação e uso com Codex/Superpowers |
+| [`docs/masp/VALIDACAO-RUNTIME-PR4.md`](docs/masp/VALIDACAO-RUNTIME-PR4.md) | Procedimento seguro para verificar um agente |
+| [`docs/masp/RELATORIO-AUDITORIA-PR4.md`](docs/masp/RELATORIO-AUDITORIA-PR4.md) | Correções, testes e bloqueios conhecidos |
+
+Relatórios anteriores dos PRs #1–#3 permanecem em `docs/masp/` como **histórico de implementação**, não como comprovação atual de execução dos agentes.
+
+---
+
+**Finalidade do projeto:** dar **método, rastreabilidade e critérios de verificação** à investigação de problemas técnicos. A automação por agentes é uma camada adicional que só deve ser considerada operacional quando houver evidência real da execução.
