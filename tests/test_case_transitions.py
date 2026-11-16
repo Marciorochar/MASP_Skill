@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from masp_skill.case import GATE_REQUIREMENTS, _event_hash, _gate_errors, case_revision, create_case, transition_case, validate_case, validate_parallel_tasks
+from masp_skill.case import GATE_REQUIREMENTS, _event_hash, _gate_errors, case_revision, create_case, current_model_availability, transition_case, validate_case, validate_parallel_tasks
 from masp_skill.cli import main
 from masp_skill.evidence import make_evidence, validate_evidence
 from masp_skill.routing import load_routing
@@ -70,6 +70,25 @@ def test_case_happy_path_records_hash_chained_events_and_validates(tmp_path):
     case = pass_gate(case, tmp_path)
     assert case['ledger'][1]['previous_hash'] == case['ledger'][0]['event_hash']
     assert validate_case(case, ROUTING, tmp_path) == []
+
+
+def test_event_model_availability_is_historical_and_evidence_content_is_hashed(tmp_path):
+    case = start(create_case('MASP-SNAPSHOT', ROUTING), tmp_path)
+    assert case['ledger'][0]['model_snapshot']['available_at_transition'] is True
+    changed_routing = deepcopy(ROUTING)
+    changed_routing['roles']['masp-identificador']['available'] = False
+    assert validate_case(case, changed_routing, tmp_path) == []
+    assert current_model_availability(changed_routing, 'Identificação')[0] is False
+    proof = tmp_path / 'Identificação-start.json'
+    proof.write_text('changed after recording', encoding='utf-8')
+    assert any('sha256' in error.lower() for error in validate_case(case, ROUTING, tmp_path))
+
+
+def test_malformed_evidence_during_replay_returns_errors_without_raising(tmp_path):
+    case = start(create_case('MASP-MALFORMED-EVIDENCE', ROUTING), tmp_path)
+    case['ledger'][0]['evidence'] = [{'id': [], 'path': '\0', 'classification': [], 'description': None}]
+    case['ledger'][0]['event_hash'] = _event_hash(case['ledger'][0])
+    assert validate_case(case, ROUTING, tmp_path)
 
 
 def test_only_next_phase_after_pass_and_declared_return_after_fail_are_valid(tmp_path):

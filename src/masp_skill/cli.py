@@ -81,13 +81,8 @@ def _write_json_atomic(path: Path, value) -> None:
 
 
 def parse_codex_smoke_output(text: str) -> dict[str, str | None]:
-    """Extract observed model and effort fields from Codex diagnostic output."""
-    model_match = re.search(r"(?im)^\s*(?:model|model_id)\s*[:=]\s*([\w.-]+)\s*$", text)
-    effort_match = re.search(r"(?im)^\s*(?:reasoning[ _]effort|effort)\s*[:=]\s*(low|medium|high)\s*$", text)
-    return {
-        "model": model_match.group(1) if model_match else None,
-        "effort": effort_match.group(1) if effort_match else None,
-    }
+    """Text output is not verified structured evidence for effective settings."""
+    return {"model": None, "effort": None}
 
 
 def validate_codex_smoke_report(report: dict) -> list[str]:
@@ -445,12 +440,15 @@ def main(argv: list[str] | None = None) -> int:
     smoke = commands.add_parser("runtime-smoke", help="collect low-impact Codex CLI smoke evidence")
     smoke.add_argument("--root", type=Path, default=Path.cwd())
     smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
+    smoke.add_argument("--strict", action="store_true", help="return nonzero when a check fails or is blocked")
 
     args = parser.parse_args(argv)
     try:
         if args.command == "runtime-smoke":
             report = run_codex_smoke(args.root, args.output_dir)
             print(f"{report['classification']}: relatório salvo em {args.output_dir}")
+            if args.strict and any(check.get("status") in {"FAIL", "BLOCKED"} for check in report.get("checks", [])):
+                return 1
             return 0
         if args.command == "case-revision":
             print(f"SHA256: {case_revision(args.case.read_bytes())}")

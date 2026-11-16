@@ -6,9 +6,17 @@ from masp_skill.cli import (_delegation_events, _skill_load_evidence, parse_code
                             validate_codex_smoke_report)
 
 
-def test_parser_extracts_model_and_effort_from_fixture():
+def test_text_claims_do_not_verify_effective_model_or_effort():
     parsed = parse_codex_smoke_output("Model: gpt-6.1-sol\nReasoning effort: medium\n")
-    assert parsed == {"model": "gpt-6.1-sol", "effort": "medium"}
+    assert parsed == {"model": None, "effort": None}
+
+
+def test_runtime_smoke_strict_returns_nonzero_for_blocked_mandatory_check(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "run_codex_smoke", lambda root, output: {
+        "classification": "NOT_RUN", "checks": [{"name": "CLI", "status": "BLOCKED"}],
+    })
+    assert cli.main(["runtime-smoke", "--root", str(tmp_path), "--output-dir", str(tmp_path / "out"), "--strict"]) == 1
+    capsys.readouterr()
 
 
 def test_parser_returns_missing_values_when_not_reported():

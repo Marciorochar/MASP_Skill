@@ -81,6 +81,15 @@ def _role_available(routing: dict[str, Any], phase: dict[str, Any]) -> tuple[boo
     return True, str(model or "")
 
 
+def current_model_availability(routing: dict[str, Any], phase_name: str) -> tuple[bool, str]:
+    """Check present routing availability explicitly; replay uses event snapshots instead."""
+    try:
+        phase = _phase(routing, phase_name)
+    except (AttributeError, TypeError, ValueError):
+        return False, f"unknown phase {phase_name!r}"
+    return _role_available(routing, phase)
+
+
 def _astra_contract(routing: dict[str, Any]) -> tuple[bool, str]:
     role = routing.get("roles", {}).get("masp-especialista-critico", {})
     model, effort = role.get("model"), role.get("effort")
@@ -298,6 +307,12 @@ def transition_case(
         "actor": actor,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "evidence": evidence,
+        "model_snapshot": {
+            "role": phase_data.get("role"),
+            "model": routing.get("roles", {}).get(phase_data.get("role"), {}).get("model"),
+            "effort": routing.get("roles", {}).get(phase_data.get("role"), {}).get("effort"),
+            "available_at_transition": _role_available(routing, phase_data)[0],
+        },
         "classification": "SIMULATED",
         "previous_hash": previous_hash,
     }
@@ -328,11 +343,6 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
     state = case.get("initial_state")
     if state not in {"PENDING", "BLOCKED"}:
         errors.append("initial_state must be PENDING or BLOCKED")
-    if phases:
-        available, _ = _role_available(routing, phases[0])
-        expected_initial_state = "PENDING" if available else "BLOCKED"
-        if state != expected_initial_state:
-            errors.append("initial state does not match declared availability of the first phase model")
     phase_name = case.get("origin_phase")
     ledger = case.get("ledger")
     if not isinstance(ledger, list):
@@ -346,7 +356,11 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
             errors.append(f"ledger sequence mismatch at event {index}")
         if event.get("previous_hash") != previous_hash:
             errors.append(f"ledger hash chain mismatch at event {index}")
-        if event.get("event_hash") != _event_hash(event):
+        try:
+            calculated_event_hash = _event_hash(event)
+        except (TypeError, ValueError, UnicodeError):
+            calculated_event_hash = None
+        if event.get("event_hash") != calculated_event_hash:
             errors.append(f"ledger event hash mismatch at event {index}")
         if event.get("classification") != "SIMULATED":
             errors.append(f"ledger event {index} must remain SIMULATED")
@@ -382,13 +396,17 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
         event_evidence = event.get("evidence", [])
         if not isinstance(event_evidence, list) or not event_evidence:
             errors.append(f"ledger event {index} must contain evidence")
-        errors.extend(f"event {index}: {issue}" for issue in validate_evidence(event_evidence, root))
-        if event.get("new_state") == "PASS" and phase_data:
+        evidence_errors = validate_evidence(event_evidence, root)
+        errors.extend(f"event {index}: {issue}" for issue in evidence_errors)
+        if event.get("new_state") == "PASS" and phase_data and not evidence_errors:
             errors.extend(f"event {index}: {issue}" for issue in _gate_errors(case, phase_data, event_evidence, routing, ledger[:index - 1]))
         if event.get("new_state") == "IN_PROGRESS" and phase_data:
-            available, availability_error = _role_available(routing, phase_data)
-            if not available:
-                errors.append(f"event {index}: {availability_error}")
+            snapshot = event.get("model_snapshot")
+            if (not isinstance(snapshot, dict) or snapshot.get("role") != phase_data.get("role")
+                    or not isinstance(snapshot.get("model"), str) or not snapshot["model"]
+                    or snapshot.get("effort") not in {"low", "medium", "high"}
+                    or snapshot.get("available_at_transition") is not True):
+                errors.append(f"event {index} has no valid historical model availability snapshot")
             if case.get("high_risk") and phase_data.get("id") == "verificacao":
                 astra_ok, astra_error = _astra_contract(routing)
                 if not astra_ok:
