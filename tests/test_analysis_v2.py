@@ -163,6 +163,7 @@ def test_accepts_declared_hypothesis_status_vocabulary(status):
         }
     if status == "REFUTADA":
         record["hypotheses"][0]["evidence_against"] = ["E3"]
+        record["sources"][2]["fact_class"] = "FATO_VERIFICADO"
     assert validate_analysis_record(record) == []
 
 
