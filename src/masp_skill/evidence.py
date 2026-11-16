@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+import re
 from typing import Any
 
 CLASSIFICATIONS = {"STATIC", "SIMULATED", "RUNTIME", "NOT_RUN"}
@@ -29,6 +30,7 @@ def make_evidence(
         "path": reference,
         "classification": classification,
         "description": description,
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         **metadata,
     }
 
@@ -55,18 +57,37 @@ def validate_evidence(evidence: list[dict[str, Any]], root: Path) -> list[str]:
         if not isinstance(reference, str) or not reference.strip():
             errors.append(f"{label} is missing path")
             continue
-        path = Path(reference)
-        resolved = path.resolve() if path.is_absolute() else (root / path).resolve()
+        try:
+            path = Path(reference)
+            resolved = path.resolve() if path.is_absolute() else (root / path).resolve()
+        except (OSError, ValueError, RuntimeError) as exc:
+            errors.append(f"{label} has an invalid path: {exc}")
+            continue
         try:
             resolved.relative_to(root)
         except ValueError:
             errors.append(f"{label} path escapes evidence root {root}: {reference}")
             continue
-        if not resolved.is_file():
+        try:
+            is_file = resolved.is_file()
+        except OSError:
+            is_file = False
+        if not is_file:
             errors.append(f"{label} references missing file {reference}")
         classification = item.get("classification")
-        if classification not in CLASSIFICATIONS:
+        if not isinstance(classification, str) or classification not in CLASSIFICATIONS:
             errors.append(f"{label} has invalid classification {classification!r}")
         if not isinstance(item.get("description"), str) or not item["description"].strip():
             errors.append(f"{label} is missing description")
+        digest = item.get("sha256")
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            errors.append(f"{label} is missing a valid sha256 content hash")
+        elif is_file:
+            try:
+                actual_digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+            except OSError as exc:
+                errors.append(f"{label} content could not be read: {exc}")
+            else:
+                if actual_digest != digest:
+                    errors.append(f"{label} content sha256 mismatch for {reference}")
     return errors

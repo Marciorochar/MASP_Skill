@@ -5,8 +5,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from masp_skill.case import GATE_REQUIREMENTS, _event_hash, _gate_errors, case_revision, create_case, transition_case, validate_case, validate_parallel_tasks
+from masp_skill.case import GATE_REQUIREMENTS, _event_hash, _gate_errors, _genesis_hash, case_revision, create_case, current_model_availability, transition_case, validate_case, validate_parallel_tasks
 from masp_skill.cli import main
+from masp_skill import cli
 from masp_skill.evidence import make_evidence, validate_evidence
 from masp_skill.routing import load_routing
 
@@ -64,12 +65,49 @@ def move_to_phase(case, target, tmp_path, routing=ROUTING):
 
 def test_case_happy_path_records_hash_chained_events_and_validates(tmp_path):
     case = create_case('MASP-001', ROUTING)
+    assert case['schema_version'] == 2
     assert case['classification'] == 'SIMULATED'
     assert case['current_phase'] == 'Identificação'
     case = start(case, tmp_path)
     case = pass_gate(case, tmp_path)
     assert case['ledger'][1]['previous_hash'] == case['ledger'][0]['event_hash']
     assert validate_case(case, ROUTING, tmp_path) == []
+
+
+def test_legacy_schema_one_event_ledger_has_explicit_migration_error(tmp_path):
+    case = create_case('MASP-LEGACY', ROUTING)
+    case['schema_version'] = 1
+    case['ledger'] = [{}]
+    errors = validate_case(case, ROUTING, tmp_path)
+    assert any('schema_version 1' in error and 'migration' in error for error in errors)
+
+
+def test_first_transition_migrates_empty_legacy_manifest_to_schema_two(tmp_path):
+    case = create_case('MASP-LEGACY-EMPTY', ROUTING)
+    case['schema_version'] = 1
+    case['genesis_hash'] = _genesis_hash(case)
+    migrated = start(case, tmp_path)
+    assert migrated['schema_version'] == 2
+    assert validate_case(migrated, ROUTING, tmp_path) == []
+
+
+def test_event_model_availability_is_historical_and_evidence_content_is_hashed(tmp_path):
+    case = start(create_case('MASP-SNAPSHOT', ROUTING), tmp_path)
+    assert case['ledger'][0]['model_snapshot']['available_at_transition'] is True
+    changed_routing = deepcopy(ROUTING)
+    changed_routing['roles']['masp-identificador']['available'] = False
+    assert validate_case(case, changed_routing, tmp_path) == []
+    assert current_model_availability(changed_routing, 'Identificação')[0] is False
+    proof = tmp_path / 'Identificação-start.json'
+    proof.write_text('changed after recording', encoding='utf-8')
+    assert any('sha256' in error.lower() for error in validate_case(case, ROUTING, tmp_path))
+
+
+def test_malformed_evidence_during_replay_returns_errors_without_raising(tmp_path):
+    case = start(create_case('MASP-MALFORMED-EVIDENCE', ROUTING), tmp_path)
+    case['ledger'][0]['evidence'] = [{'id': [], 'path': '\0', 'classification': [], 'description': None}]
+    case['ledger'][0]['event_hash'] = _event_hash(case['ledger'][0])
+    assert validate_case(case, ROUTING, tmp_path)
 
 
 def test_only_next_phase_after_pass_and_declared_return_after_fail_are_valid(tmp_path):
@@ -200,6 +238,22 @@ def test_runtime_verification_requires_command_exit_and_result(tmp_path):
     assert incomplete
 
 
+def test_runtime_verification_rejects_nonzero_exit_even_with_complete_evidence(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-VERIFY-FAIL', ROUTING), verification_phase, tmp_path)
+    with pytest.raises(ValueError, match='zero|successful|exit_code'):
+        pass_gate(case, tmp_path, classification='RUNTIME', exit_code=1, stdout='failed')
+
+
+def test_runtime_verification_rejects_mixed_success_and_failed_execution_records(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-VERIFY-MIXED', ROUTING), verification_phase, tmp_path)
+    failed = evidence(tmp_path, 'failed-test.json', classification='RUNTIME', exit_code=1, stdout='test failed')
+    succeeded = evidence(tmp_path, 'successful-test.json', classification='RUNTIME', exit_code=0, stdout='another test passed')
+    with pytest.raises(ValueError, match='non-zero|nonzero|failed|exit_code'):
+        transition_case(case, 'PASS', 'masp-coordenador', [failed, succeeded], ROUTING, root=tmp_path)
+
+
 def test_high_risk_verification_requires_a_reported_astra_runtime_opinion_and_available_model(tmp_path):
     case = move_to_phase(create_case('MASP-ASTRA', ROUTING, high_risk=True), 'Verificação', tmp_path)
     with pytest.raises(ValueError, match='Astra|astra|audit|auditoria'):
@@ -208,6 +262,139 @@ def test_high_risk_verification_requires_a_reported_astra_runtime_opinion_and_av
     astra = evidence(tmp_path, 'astra.json', classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='medium', opinion='PASS', astra_reason='High risk requires independent audit.', related_evidence=[proof['id']], coordinator_decision='Accept the declared Astra opinion for this simulation.')
     case = transition_case(case, 'PASS', 'masp-coordenador', [proof, astra], ROUTING, root=tmp_path)
     assert case['state'] == 'PASS'
+
+
+def test_high_risk_astra_success_does_not_override_failed_test_record(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-ASTRA-TEST-FAIL', ROUTING, high_risk=True), verification_phase, tmp_path)
+    failed_test = evidence(tmp_path, 'astra-test-failed.json', classification='RUNTIME', exit_code=1, stdout='test failed')
+    successful_astra = evidence(tmp_path, 'astra-test-opinion.json', classification='RUNTIME', role='masp-especialista-critico',
+                                model='gpt-6-astra', effort='medium', opinion='PASS', exit_code=0,
+                                astra_reason='Independent review.', related_evidence=[failed_test['id']],
+                                coordinator_decision='Astra approved, but the failed test must block.')
+    with pytest.raises(ValueError, match='non-zero|nonzero|failed|exit_code'):
+        transition_case(case, 'PASS', 'masp-coordenador', [failed_test, successful_astra], ROUTING, root=tmp_path)
+
+
+@pytest.mark.parametrize('invalid_opinion', [['PASS'], {'opinion': 'PASS'}])
+def test_malformed_astra_opinion_is_rejected_in_transition_and_replay(tmp_path, invalid_opinion):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-ASTRA-INVALID-OPINION', ROUTING, high_risk=True), verification_phase, tmp_path)
+    proof = evidence(tmp_path, f'opinion-related-{len(invalid_opinion)}.json', classification='RUNTIME')
+    astra = evidence(tmp_path, f'opinion-record-{len(invalid_opinion)}.json', classification='RUNTIME', role='masp-especialista-critico',
+                     model='gpt-6-astra', effort='medium', opinion=invalid_opinion, astra_reason='Audit.',
+                     related_evidence=[proof['id']], coordinator_decision='Recorded.')
+    with pytest.raises(ValueError, match='Astra'):
+        transition_case(case, 'PASS', 'masp-coordenador', [proof, astra], ROUTING, root=tmp_path)
+    valid_opinion = dict(astra, opinion='PASS')
+    replay_case = transition_case(case, 'PASS', 'masp-coordenador', [proof, valid_opinion], ROUTING, root=tmp_path)
+    replay_case['ledger'][-1]['evidence'][1]['opinion'] = invalid_opinion
+    previous = '0' * 64
+    for event in replay_case['ledger']:
+        event['previous_hash'] = previous
+        event['event_hash'] = _event_hash(event)
+        previous = event['event_hash']
+    assert validate_case(replay_case, ROUTING, tmp_path)
+
+
+def test_astra_historical_pass_survives_current_unavailability(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-ASTRA-HISTORY', ROUTING, high_risk=True), verification_phase, tmp_path)
+    proof = evidence(tmp_path, 'historical-related.json', classification='RUNTIME')
+    opinion = evidence(tmp_path, 'historical-astra.json', classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='medium', opinion='PASS', astra_reason='Historical audit.', related_evidence=[proof['id']], coordinator_decision='Accepted.')
+    case = transition_case(case, 'PASS', 'masp-coordenador', [proof, opinion], ROUTING, root=tmp_path)
+    unavailable_now = deepcopy(ROUTING)
+    unavailable_now['roles']['masp-especialista-critico']['available'] = False
+    assert validate_case(case, unavailable_now, tmp_path) == []
+
+
+def test_malformed_earlier_evidence_does_not_crash_astra_reference_replay(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-ASTRA-MALFORMED-REF', ROUTING, high_risk=True), verification_phase, tmp_path)
+    proof = evidence(tmp_path, 'malformed-ref-related.json', classification='RUNTIME')
+    opinion = evidence(tmp_path, 'malformed-ref-astra.json', classification='RUNTIME', role='masp-especialista-critico',
+                       model='gpt-6-astra', effort='medium', opinion='PASS', astra_reason='Audit.',
+                       related_evidence=[proof['id']], coordinator_decision='Accepted.')
+    case = transition_case(case, 'PASS', 'masp-coordenador', [proof, opinion], ROUTING, root=tmp_path)
+    case['ledger'][0]['evidence'] = None
+    previous = '0' * 64
+    for event in case['ledger']:
+        event['previous_hash'] = previous
+        event['event_hash'] = _event_hash(event)
+        previous = event['event_hash']
+    assert validate_case(case, ROUTING, tmp_path)
+
+
+def test_cli_case_commands_require_agent_config_when_not_found(tmp_path, capsys):
+    import shutil
+
+    routing_path = tmp_path / 'docs' / 'masp' / 'masp-routing.toml'
+    routing_path.parent.mkdir(parents=True)
+    shutil.copyfile(MATRIX, routing_path)
+    output_path = tmp_path / 'case.json'
+    result = main(['new-case', '--id', 'MASP-NO-CONFIG', '--output', str(output_path), '--root', str(tmp_path),
+                   '--routing', str(routing_path)])
+    assert result == 1
+    assert 'agent config' in capsys.readouterr().out.lower()
+    assert not output_path.exists()
+    case_path = tmp_path / 'existing.json'
+    case_path.write_text(json.dumps(create_case('MASP-NO-CONFIG-VALIDATE', ROUTING), ensure_ascii=False), encoding='utf-8')
+    result = main(['validate-case', '--case', str(case_path), '--root', str(tmp_path), '--routing', str(routing_path)])
+    assert result == 1
+    assert 'agent config' in capsys.readouterr().out.lower()
+
+
+@pytest.mark.parametrize('command', ['validate-routing', 'new-case', 'transition', 'validate-case'])
+def test_cli_malformed_role_table_returns_validation_error_not_traceback(tmp_path, monkeypatch, capsys, command):
+    malformed = deepcopy(ROUTING)
+    malformed['roles']['masp-identificador'] = 'not a table'
+    monkeypatch.setattr(cli, 'load_routing', lambda _: malformed)
+    case_path = tmp_path / 'case.json'
+    case_path.write_text(json.dumps(create_case('MASP-MALFORMED-ROLE', ROUTING), ensure_ascii=False), encoding='utf-8')
+    proof = evidence(tmp_path, 'malformed-role-proof.json')
+    evidence_path = tmp_path / 'evidence.json'
+    evidence_path.write_text(json.dumps([proof], ensure_ascii=False), encoding='utf-8')
+    common = ['--routing', str(MATRIX), '--root', str(tmp_path)]
+    if command == 'validate-routing':
+        args = ['validate-routing', '--routing', str(MATRIX)]
+    elif command == 'new-case':
+        args = ['new-case', '--id', 'MASP-MALFORMED-ROLE', '--output', str(tmp_path / 'new.json'), *common]
+    elif command == 'transition':
+        args = ['transition', '--case', str(case_path), '--state', 'IN_PROGRESS', '--actor', 'masp-coordenador',
+                '--evidence', str(evidence_path), '--expected-revision', case_revision(case_path.read_bytes()), *common]
+    else:
+        args = ['validate-case', '--case', str(case_path), *common]
+    result = main(args)
+    captured = capsys.readouterr()
+    assert result == 1
+    assert 'Traceback' not in captured.out
+
+
+def test_high_risk_astra_opinion_rejects_nonzero_exit(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-ASTRA-EXIT', ROUTING, high_risk=True), verification_phase, tmp_path)
+    proof = evidence(tmp_path, 'astra-exit-related.json', classification='RUNTIME')
+    opinion = evidence(tmp_path, 'astra-exit.json', classification='RUNTIME', role='masp-especialista-critico',
+                       model='gpt-6-astra', effort='medium', opinion='PASS', exit_code=2,
+                       astra_reason='The audit command failed.', related_evidence=[proof['id']],
+                       coordinator_decision='Do not accept failed audit evidence.')
+    with pytest.raises(ValueError, match='Astra'):
+        transition_case(case, 'PASS', 'masp-coordenador', [proof, opinion], ROUTING, root=tmp_path)
+
+
+def test_malformed_prior_plan_approval_evidence_does_not_crash_replay(tmp_path):
+    action_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'acao')
+    case = move_to_phase(create_case('MASP-PLAN-MALFORMED', ROUTING), action_phase, tmp_path)
+    plan_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'plano-de-acao')
+    for event in case['ledger']:
+        event['evidence'] = [None] if event.get('phase') == plan_phase and event.get('new_state') == 'PASS' else event['evidence']
+    previous = '0' * 64
+    for event in case['ledger']:
+        event['previous_hash'] = previous
+        event['event_hash'] = _event_hash(event)
+        previous = event['event_hash']
+    assert validate_case(case, ROUTING, tmp_path)
+def test_high_risk_astra_required_record_fields_and_contract(tmp_path):
     for field, bad_value in (('astra_reason', ''), ('related_evidence', []), ('coordinator_decision', '')):
         for absent in (False, True):
             suffix = 'absent' if absent else 'empty'
@@ -241,6 +428,11 @@ def test_evidence_paths_must_resolve_inside_root_and_exist(tmp_path):
     ], tmp_path))
     assert any('missing file' in issue.lower() for issue in validate_evidence([
         {'id': 'missing', 'path': 'missing.txt', 'classification': 'SIMULATED', 'description': 'missing'}
+    ], tmp_path))
+    content = tmp_path / 'bad-hash.txt'
+    content.write_text('some content', encoding='utf-8')
+    assert any('sha256' in issue.lower() for issue in validate_evidence([
+        {'id': 'bad-hash', 'path': 'bad-hash.txt', 'classification': 'SIMULATED', 'description': 'bad hash', 'sha256': 'z' * 64}
     ], tmp_path))
 
 
@@ -297,6 +489,49 @@ def test_cli_new_case_normalizes_output_under_root_and_refuses_escape_or_overwri
     capsys.readouterr()
     assert main(['new-case', '--id', 'MASP-NEW', '--output', 'cases/new.json', '--root', str(tmp_path), '--routing', str(MATRIX)]) == 1
     assert json.loads(target.read_text(encoding='utf-8'))['case_id'] == 'MASP-NEW'
+
+
+def test_cli_new_case_rejects_invalid_routing_before_writing(tmp_path, capsys):
+    routing_file = tmp_path / 'routing.toml'
+    routing_file.write_text(MATRIX.read_text(encoding='utf-8').replace('max_agents = 3', 'max_agents = 2'), encoding='utf-8')
+    assert main(['new-case', '--id', 'MASP-BAD-ROUTING', '--output', 'case.json', '--root', str(tmp_path),
+                 '--routing', str(routing_file)]) == 1
+    assert not (tmp_path / 'case.json').exists()
+    assert 'invalid routing/agent configuration' in capsys.readouterr().out
+
+
+def test_cli_new_case_rejects_agent_config_drift(tmp_path, capsys):
+    import shutil
+
+    shutil.copytree(ROOT / '.codex', tmp_path / '.codex')
+    agent_file = tmp_path / '.codex' / 'agents' / 'masp-observador.toml'
+    agent_file.write_text(agent_file.read_text(encoding='utf-8').replace('gpt-6-luna', 'gpt-fictional'), encoding='utf-8')
+    assert main(['new-case', '--id', 'MASP-AGENT-DRIFT', '--output', 'case.json', '--root', str(tmp_path),
+                 '--routing', str(MATRIX)]) == 1
+    assert not (tmp_path / 'case.json').exists()
+    assert 'masp-observador model does not match routing' in capsys.readouterr().out
+
+
+def test_cli_transition_applies_configured_effective_parallel_limit(tmp_path, capsys):
+    import shutil
+
+    shutil.copytree(ROOT / '.codex', tmp_path / '.codex')
+    config_path = tmp_path / '.codex' / 'config.toml'
+    config_path.write_text(config_path.read_text(encoding='utf-8').replace('max_threads = 3', 'max_threads = 1'), encoding='utf-8')
+    case_path = tmp_path / 'case.json'
+    case_path.write_text(json.dumps(create_case('MASP-PARALLEL-CAP', ROUTING), ensure_ascii=False), encoding='utf-8')
+    proof = evidence(tmp_path, 'parallel-cap-proof.json')
+    evidence_path = tmp_path / 'evidence.json'
+    evidence_path.write_text(json.dumps([proof], ensure_ascii=False), encoding='utf-8')
+    tasks_path = tmp_path / 'tasks.json'
+    tasks_path.write_text(json.dumps([{'id': 'one', 'writes': ['a.py']}, {'id': 'two', 'writes': ['b.py']}]), encoding='utf-8')
+    revision = case_revision(case_path.read_bytes())
+    result = main(['transition', '--case', str(case_path), '--state', 'IN_PROGRESS', '--actor', 'masp-coordenador',
+                   '--evidence', str(evidence_path), '--parallel-tasks', str(tasks_path), '--routing', str(MATRIX),
+                   '--root', str(tmp_path), '--expected-revision', revision])
+    assert result == 1
+    assert 'effective limit 1' in capsys.readouterr().out
+    assert case_revision(case_path.read_bytes()) == revision
 
 
 def test_case_revision_works_without_routing_file_in_current_directory(tmp_path, monkeypatch, capsys):

@@ -12,6 +12,7 @@ README = ROOT / "README.md"
 PROMPT = ROOT / "docs/masp/PROMPT-CODEX.md"
 REPORT = ROOT / "docs/masp/RELATORIO-IMPLEMENTACAO.md"
 EXAMPLE = ROOT / "docs/masp/exemplos/MASP-CONFIG-SMOKE.md"
+AUDIT_REPORT = ROOT / "docs/masp/RELATORIO-AUDITORIA-PR1.md"
 SMOKE_JSON = ROOT / "docs/masp/evidencias/codex-smoke.json"
 SMOKE_MD = ROOT / "docs/masp/evidencias/codex-smoke.md"
 ROUTING = ROOT / "docs/masp/masp-routing.toml"
@@ -96,3 +97,24 @@ def test_documentation_has_no_placeholder_and_routing_still_validates(capsys):
     assert validate_routing(load_routing(ROUTING)) == []
     assert main(["validate-routing", "--routing", str(ROUTING), "--classification", "STATIC"]) == 0
     assert "STATIC" in capsys.readouterr().out
+
+
+def test_pr1_audit_report_records_current_status_and_pending_runtime_proof():
+    report = read(AUDIT_REPORT)
+    for requirement in (
+        "disponibilidade histórica",
+        "evidência malformada",
+        "testes portáveis",
+        "testes malsucedidos",
+        "SHA-256",
+        "configuração de agentes aplicada",
+        "runtime-smoke --strict",
+        "GitHub Actions",
+        "skill descoberta",
+    ):
+        assert requirement.lower() in report.lower()
+    for status in ("PASS", "FAIL", "BLOCKED", "NOT_RUN"):
+        assert status in report
+    assert "82 passed" in report
+    assert "77 passaram" not in report
+    assert "multi-agent runtime remains BLOCKED" in report

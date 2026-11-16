@@ -64,6 +64,9 @@ def validate_agent_configs(routing: dict[str, Any], agents: dict[str, dict[str, 
     for name in sorted(set(agents) - set(expected_roles)):
         errors.append(f"unexpected agent config for {name}")
     for name, expected in expected_roles.items():
+        if not isinstance(expected, dict):
+            errors.append(f"routing role {name} must be a table")
+            continue
         agent = agents.get(name)
         if not isinstance(agent, dict):
             continue
@@ -181,6 +184,8 @@ def validate_routing(data: dict[str, Any]) -> list[str]:
     parallelism = policies.get("parallelism", {})
     if not isinstance(parallelism, dict) or parallelism.get("max_agents") != 3:
         errors.append("parallelism max_agents must be 3")
+    elif parallelism.get("effective_runtime_limit_applies") is not True or parallelism.get("same_write_file") != "reject":
+        errors.append("parallelism must apply the effective runtime limit and reject same-file writers")
     unavailable = policies.get("unavailable_model", {})
     if (not isinstance(unavailable, dict) or unavailable.get("state") != "BLOCKED"
             or unavailable.get("automatic_fallback") is not False):

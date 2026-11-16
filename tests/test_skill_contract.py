@@ -1,6 +1,9 @@
 from pathlib import Path
+import os
 import re
 import tomllib
+
+import pytest
 
 from masp_skill.routing import load_routing
 
@@ -43,25 +46,40 @@ def test_skill_documents_official_cli_commands_and_their_real_entry_point():
         assert f"masp_skill.cli {command}" in text
 
 
-def test_skill_references_confirmed_superpowers_skills_and_no_required_rea():
+def _superpowers_roots():
+    """Find optional external Superpowers installs without assuming a host path."""
+    configured = os.environ.get("MASP_SUPERPOWERS_SKILLS_DIR")
+    if configured:
+        yield Path(configured).expanduser()
+    homes = {Path.home()}
+    user_profile = os.environ.get("USERPROFILE")
+    if user_profile:
+        homes.add(Path(user_profile).expanduser())
+    for home in homes:
+        cache = home / ".codex" / "plugins" / "cache" / "openai-curated-remote" / "superpowers"
+        if cache.is_dir():
+            yield from cache.glob("*/skills")
+
+
+def test_skill_references_declared_superpowers_skills_and_no_required_rea():
     text = SKILL.read_text(encoding="utf-8") + REFERENCE.read_text(encoding="utf-8")
     matrix = tomllib.loads(ROUTING.read_text(encoding="utf-8"))
-    declared = {
-        item["name"]: Path(item["path"])
+    declared = [
+        item
         for phase in matrix["phases"]
         for item in phase.get("skills", [])
         if item["name"].startswith("superpowers:")
-    }
-    required = {
-        "superpowers:dispatching-parallel-agents": Path(
-            r"C:\Users\marci\.codex\plugins\cache\openai-curated-remote\superpowers\7.0.1\skills\dispatching-parallel-agents\SKILL.md"
-        ),
-        "superpowers:subagent-driven-development": Path(
-            r"C:\Users\marci\.codex\plugins\cache\openai-curated-remote\superpowers\7.0.1\skills\subagent-driven-development\SKILL.md"
-        ),
-    }
-    assert all(path.is_file() for path in declared.values())
-    assert all(path.is_file() for path in required.values())
-    for name in (*declared, *required):
-        assert name in text
+    ]
+    assert declared
+    for item in declared:
+        assert item["name"] in text
+        assert item["path"].endswith("/SKILL.md")
+    # Optional external integration is reported as skipped when unavailable.
+    roots = [root for root in _superpowers_roots() if root.is_dir()]
+    if not roots:
+        pytest.skip("Superpowers skill files are optional; install or set MASP_SUPERPOWERS_SKILLS_DIR to validate their availability")
+    for item in declared:
+        skill_name = item["name"].partition(":")[2]
+        if item.get("required", True):
+            assert any((root / skill_name / "SKILL.md").is_file() for root in roots), skill_name
     assert "REA" in text and "not" in text.lower() and "unavailable" in text.lower()

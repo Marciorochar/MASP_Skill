@@ -94,6 +94,15 @@ def test_rejects_invalid_return_reference_and_return_types():
         assert any("return" in error.lower() for error in validate_routing(data))
 
 
+def test_parallelism_policy_requires_effective_runtime_cap_and_write_conflict_rejection():
+    data = load_routing(MATRIX)
+    data["policies"]["parallelism"]["effective_runtime_limit_applies"] = False
+    assert any("effective runtime limit" in error.lower() for error in validate_routing(data))
+    data = load_routing(MATRIX)
+    data["policies"]["parallelism"]["same_write_file"] = "allow"
+    assert any("same-file" in error.lower() for error in validate_routing(data))
+
+
 def test_rejects_missing_phase_contract_fields_and_invalid_types():
     for field, invalid_value in (("inputs", []), ("outputs", "artifact"),
                                  ("tools", ["test_runner", 2]), ("tools", ["imaginary_tool"]),

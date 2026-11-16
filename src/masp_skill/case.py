@@ -81,14 +81,26 @@ def _role_available(routing: dict[str, Any], phase: dict[str, Any]) -> tuple[boo
     return True, str(model or "")
 
 
+def current_model_availability(routing: dict[str, Any], phase_name: str) -> tuple[bool, str]:
+    """Check present routing availability explicitly; replay uses event snapshots instead."""
+    try:
+        phase = _phase(routing, phase_name)
+    except (AttributeError, TypeError, ValueError):
+        return False, f"unknown phase {phase_name!r}"
+    return _role_available(routing, phase)
+
+
 def _astra_contract(routing: dict[str, Any]) -> tuple[bool, str]:
     role = routing.get("roles", {}).get("masp-especialista-critico", {})
     model, effort = role.get("model"), role.get("effort")
     if model != ASTRA_MODEL or effort != ASTRA_EFFORT:
         return False, f"BLOCKED: Astra routing must declare {ASTRA_MODEL}/{ASTRA_EFFORT}, got {model!r}/{effort!r}"
-    if role.get("available", True) is False or role.get("model_available", True) is False:
-        return False, f"BLOCKED: required Astra model {ASTRA_MODEL} is unavailable; no audit substitution is made"
     return True, ASTRA_MODEL
+
+
+def _astra_current_available(routing: dict[str, Any]) -> bool:
+    role = routing.get("roles", {}).get("masp-especialista-critico", {})
+    return role.get("available", True) is not False and role.get("model_available", True) is not False
 
 
 def create_case(case_id: str, routing: dict[str, Any], *, high_risk: bool = False) -> dict[str, Any]:
@@ -102,7 +114,7 @@ def create_case(case_id: str, routing: dict[str, Any], *, high_risk: bool = Fals
     role_available, model = _role_available(routing, phases[0])
     initial_state = "PENDING" if role_available else "BLOCKED"
     case = {
-        "schema_version": 1,
+        "schema_version": 2,
         "case_id": case_id,
         "classification": "SIMULATED",
         "origin_phase": origin,
@@ -121,9 +133,16 @@ def create_case(case_id: str, routing: dict[str, Any], *, high_risk: bool = Fals
 
 def _plan_approval_recorded(case: dict[str, Any], prior_events: list[dict[str, Any]]) -> bool:
     for event in prior_events:
+        if not isinstance(event, dict):
+            continue
         if event.get("phase") != "Plano de ação" or event.get("new_state") != "PASS":
             continue
-        if any(item.get("approval_type") == "human_plan" and isinstance(item.get("approved_by"), str) and item["approved_by"].strip() for item in event.get("evidence", [])):
+        items = event.get("evidence")
+        if isinstance(items, list) and any(
+            isinstance(item, dict) and item.get("approval_type") == "human_plan"
+            and isinstance(item.get("approved_by"), str) and item["approved_by"].strip()
+            for item in items
+        ):
             return True
     return False
 
@@ -135,6 +154,9 @@ def _gate_errors(
     routing: dict[str, Any],
     prior_events: list[dict[str, Any]],
     required_classification: str | None = None,
+    *,
+    historical: bool = False,
+    astra_snapshot: dict[str, Any] | None = None,
 ) -> list[str]:
     errors: list[str] = []
     phase_id = phase.get("id")
@@ -166,16 +188,25 @@ def _gate_errors(
         runtime_records = [item for item in evidence if item.get("classification") == "RUNTIME"]
         if not runtime_records:
             errors.append("verification gate requires declared RUNTIME evidence")
-        elif not any(
+        execution_records = [item for item in runtime_records
+                             if item.get("role") != "masp-especialista-critico"
+                             and not (item.get("model") == ASTRA_MODEL and "opinion" in item)
+                             and ("command" in item or "exit_code" in item)]
+        successful_execution = lambda item: (
             isinstance(item.get("command"), str) and item["command"].strip()
-            and isinstance(item.get("exit_code"), int)
+            and isinstance(item.get("exit_code"), int) and not isinstance(item.get("exit_code"), bool)
+            and item["exit_code"] == 0
             and (bool(item.get("stdout")) or bool(item.get("stderr")))
-            for item in runtime_records
-        ):
-            errors.append("RUNTIME verification evidence requires command, integer exit_code, and stdout or stderr result")
+        )
+        failed_execution = [item for item in execution_records if not successful_execution(item)]
+        if failed_execution:
+            errors.append("verification gate cannot PASS: every test/command execution record must have exit_code 0")
+        if not any(successful_execution(item) for item in execution_records):
+            errors.append("verification gate requires at least one successful test/command execution record apart from Astra opinion")
     if phase_id == "conclusao":
         prior_phases = [item.get("name") for item in routing.get("phases", []) if item.get("name") != phase.get("name")]
-        passed_phases = {event.get("phase") for event in prior_events if event.get("new_state") == "PASS"}
+        passed_phases = {event.get("phase") for event in prior_events
+                         if isinstance(event, dict) and event.get("new_state") == "PASS"}
         missing_phases = [name for name in prior_phases if name not in passed_phases]
         if missing_phases:
             errors.append(f"conclusion requires preceding phase gates to PASS: {missing_phases}")
@@ -183,15 +214,23 @@ def _gate_errors(
         astra_ok, astra_contract_error = _astra_contract(routing)
         if not astra_ok:
             errors.append(astra_contract_error)
+        if historical:
+            if (not isinstance(astra_snapshot, dict) or astra_snapshot.get("model") != ASTRA_MODEL
+                    or astra_snapshot.get("effort") != ASTRA_EFFORT
+                    or astra_snapshot.get("available_at_transition") is not True):
+                errors.append("historical Astra model availability snapshot is missing or invalid")
+        elif not _astra_current_available(routing):
+            errors.append(f"BLOCKED: required Astra model {ASTRA_MODEL} is unavailable; no audit substitution is made")
         astra_role = routing.get("roles", {}).get("masp-especialista-critico", {})
         opinions = [item for item in evidence if
             item.get("role") == "masp-especialista-critico"
             and item.get("model") == astra_role.get("model") == ASTRA_MODEL
             and item.get("effort") == astra_role.get("effort") == ASTRA_EFFORT
-            and item.get("opinion") in {"PASS", "APPROVED"}
+            and isinstance(item.get("opinion"), str) and item.get("opinion") in {"PASS", "APPROVED"}
             and item.get("classification") == "RUNTIME"
             and isinstance(item.get("command"), str) and item["command"].strip()
             and isinstance(item.get("exit_code"), int)
+            and not isinstance(item.get("exit_code"), bool) and item["exit_code"] == 0
             and (bool(item.get("stdout")) or bool(item.get("stderr")))
         ]
         if not opinions:
@@ -201,12 +240,15 @@ def _gate_errors(
         if not isinstance(required_record, list) or not required_record or any(not isinstance(key, str) or not key.strip() for key in required_record):
             errors.append("routing matrix astra_escalation.required_record must declare required fields")
         elif opinions:
-            known_evidence_ids = {
-                item.get("id")
-                for event in prior_events
-                for item in event.get("evidence", [])
-                if isinstance(item, dict) and isinstance(item.get("id"), str)
-            }
+            known_evidence_ids = set()
+            for event in prior_events:
+                if not isinstance(event, dict):
+                    continue
+                prior_evidence = event.get("evidence")
+                if not isinstance(prior_evidence, list):
+                    continue
+                known_evidence_ids.update(item["id"] for item in prior_evidence
+                                          if isinstance(item, dict) and isinstance(item.get("id"), str))
             known_evidence_ids.update(item.get("id") for item in evidence if isinstance(item.get("id"), str))
             for field in required_record:
                 if field not in {"astra_reason", "related_evidence", "coordinator_decision"}:
@@ -279,8 +321,8 @@ def transition_case(
             raise ValueError(model_or_error)
         if case.get("high_risk") and phase_data.get("id") == "verificacao":
             astra_ok, astra_error = _astra_contract(routing)
-            if not astra_ok:
-                raise ValueError(astra_error)
+            if not astra_ok or not _astra_current_available(routing):
+                raise ValueError(astra_error if not astra_ok else f"BLOCKED: required Astra model {ASTRA_MODEL} is unavailable; no audit substitution is made")
         if phase_data.get("id") == "acao" and not _plan_approval_recorded(case, case.get("ledger", [])):
             raise ValueError("Action cannot start until the plan gate records a simulated approval")
     if target_state == "PASS":
@@ -289,6 +331,9 @@ def transition_case(
             raise ValueError("; ".join(gate_errors))
 
     result = json.loads(json.dumps(case, ensure_ascii=False))
+    if result.get("schema_version") == 1:
+        result["schema_version"] = 2
+        result["genesis_hash"] = _genesis_hash(result)
     previous_hash = result["ledger"][-1]["event_hash"] if result["ledger"] else "0" * 64
     event = {
         "sequence": len(result["ledger"]) + 1,
@@ -298,6 +343,17 @@ def transition_case(
         "actor": actor,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "evidence": evidence,
+        "model_snapshot": {
+            "role": phase_data.get("role"),
+            "model": routing.get("roles", {}).get(phase_data.get("role"), {}).get("model"),
+            "effort": routing.get("roles", {}).get(phase_data.get("role"), {}).get("effort"),
+            "available_at_transition": _role_available(routing, phase_data)[0],
+        },
+        "astra_snapshot": ({
+            "model": routing.get("roles", {}).get("masp-especialista-critico", {}).get("model"),
+            "effort": routing.get("roles", {}).get("masp-especialista-critico", {}).get("effort"),
+            "available_at_transition": _astra_current_available(routing),
+        } if case.get("high_risk") and phase_data.get("id") in {"verificacao", "conclusao"} else None),
         "classification": "SIMULATED",
         "previous_hash": previous_hash,
     }
@@ -313,6 +369,11 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
     if not isinstance(case, dict):
         return ["case must be an object"]
     errors: list[str] = []
+    schema_version = case.get("schema_version")
+    if schema_version == 1 and case.get("ledger"):
+        errors.append("schema_version 1 ledgers require migration to version 2; recreate or explicitly migrate each event with historical model snapshots and evidence SHA-256 hashes")
+    elif schema_version not in {1, 2}:
+        errors.append(f"unsupported schema_version {schema_version!r}; create a version 2 case")
     if not isinstance(case.get("case_id"), str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{1,63}", case.get("case_id", "")):
         errors.append("case id is missing or invalid")
     if case.get("classification") != "SIMULATED":
@@ -328,11 +389,6 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
     state = case.get("initial_state")
     if state not in {"PENDING", "BLOCKED"}:
         errors.append("initial_state must be PENDING or BLOCKED")
-    if phases:
-        available, _ = _role_available(routing, phases[0])
-        expected_initial_state = "PENDING" if available else "BLOCKED"
-        if state != expected_initial_state:
-            errors.append("initial state does not match declared availability of the first phase model")
     phase_name = case.get("origin_phase")
     ledger = case.get("ledger")
     if not isinstance(ledger, list):
@@ -346,7 +402,11 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
             errors.append(f"ledger sequence mismatch at event {index}")
         if event.get("previous_hash") != previous_hash:
             errors.append(f"ledger hash chain mismatch at event {index}")
-        if event.get("event_hash") != _event_hash(event):
+        try:
+            calculated_event_hash = _event_hash(event)
+        except (TypeError, ValueError, UnicodeError):
+            calculated_event_hash = None
+        if event.get("event_hash") != calculated_event_hash:
             errors.append(f"ledger event hash mismatch at event {index}")
         if event.get("classification") != "SIMULATED":
             errors.append(f"ledger event {index} must remain SIMULATED")
@@ -382,17 +442,27 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
         event_evidence = event.get("evidence", [])
         if not isinstance(event_evidence, list) or not event_evidence:
             errors.append(f"ledger event {index} must contain evidence")
-        errors.extend(f"event {index}: {issue}" for issue in validate_evidence(event_evidence, root))
-        if event.get("new_state") == "PASS" and phase_data:
-            errors.extend(f"event {index}: {issue}" for issue in _gate_errors(case, phase_data, event_evidence, routing, ledger[:index - 1]))
+        evidence_errors = validate_evidence(event_evidence, root)
+        errors.extend(f"event {index}: {issue}" for issue in evidence_errors)
+        if event.get("new_state") == "PASS" and phase_data and not evidence_errors:
+            errors.extend(f"event {index}: {issue}" for issue in _gate_errors(
+                case, phase_data, event_evidence, routing, ledger[:index - 1], historical=True,
+                astra_snapshot=event.get("astra_snapshot")))
         if event.get("new_state") == "IN_PROGRESS" and phase_data:
-            available, availability_error = _role_available(routing, phase_data)
-            if not available:
-                errors.append(f"event {index}: {availability_error}")
+            snapshot = event.get("model_snapshot")
+            if (not isinstance(snapshot, dict) or snapshot.get("role") != phase_data.get("role")
+                    or not isinstance(snapshot.get("model"), str) or not snapshot["model"]
+                    or snapshot.get("effort") not in {"low", "medium", "high"}
+                    or snapshot.get("available_at_transition") is not True):
+                errors.append(f"event {index} has no valid historical model availability snapshot")
             if case.get("high_risk") and phase_data.get("id") == "verificacao":
                 astra_ok, astra_error = _astra_contract(routing)
-                if not astra_ok:
-                    errors.append(f"event {index}: {astra_error}")
+                astra_snapshot = event.get("astra_snapshot")
+                if (not astra_ok or not isinstance(astra_snapshot, dict)
+                        or astra_snapshot.get("model") != ASTRA_MODEL
+                        or astra_snapshot.get("effort") != ASTRA_EFFORT
+                        or astra_snapshot.get("available_at_transition") is not True):
+                    errors.append(f"event {index}: {astra_error or 'historical Astra model availability snapshot is missing or invalid'}")
             if phase_data.get("id") == "acao" and not _plan_approval_recorded(case, ledger[:index - 1]):
                 errors.append(f"event {index}: action started before plan approval gate")
         state = event.get("new_state") if event.get("new_state") in STATES else state
