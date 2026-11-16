@@ -33,7 +33,7 @@ O sistema não autentica rótulos de ator, aprovação ou modelo efetivo. SHA-25
 ## Testes e comandos executados
 
 - Baseline na branch atual antes das correções: `rtk pytest -q` — 57 passaram.
-- Suite após integração final local: `rtk pytest -q` — **77 passaram**.
+- Suite após integração final local: `rtk pytest -q` — **82 passaram**.
 - `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC` (com `PYTHONPATH=src`) — oito fases, dez papéis, zero erros.
 - `python -m masp_skill.cli validate-case --case tests/fixtures/cases/valid-case.json --routing docs/masp/masp-routing.toml --root .` — fixture e ledger válidos (`STATIC`).
 - `rtk git diff --check origin/main...HEAD` — sem erros de whitespace.

@@ -116,4 +116,5 @@ def test_pr1_audit_report_records_current_status_and_pending_runtime_proof():
     for status in ("PASS", "FAIL", "BLOCKED", "NOT_RUN"):
         assert status in report
     assert "82 passed" in report
+    assert "77 passaram" not in report
     assert "multi-agent runtime remains BLOCKED" in report
