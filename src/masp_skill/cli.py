@@ -184,6 +184,8 @@ def _effective_config_errors(routing: dict, routing_path: Path, workspace: Path)
             errors.extend(validate_agent_configs(routing, load_agent_configs(config_root)))
         except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError) as exc:
             errors.append(f"agent config could not be loaded: {exc}")
+    else:
+        errors.append("agent config .codex/config.toml was not found under workspace or routing root")
     return errors
 
 
@@ -546,6 +548,13 @@ def main(argv: list[str] | None = None) -> int:
                 _write_json_atomic(case_path, result)
             print(f"SIMULATED: {result['current_phase']} -> {result['state']}; role and approval labels are not authenticated")
             return 0
+        if args.command == "validate-case":
+            config_errors = _effective_config_errors(routing, args.routing, args.root)
+            if config_errors:
+                print(f"STATIC: {len(config_errors)} erro(s)")
+                for error in config_errors:
+                    print(f"- {error}")
+                return 1
         case_path = _within_root(args.case, args.root)
         case = _read_json(case_path)
         errors = validate_case(case, routing, args.root)

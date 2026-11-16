@@ -114,7 +114,7 @@ def create_case(case_id: str, routing: dict[str, Any], *, high_risk: bool = Fals
     role_available, model = _role_available(routing, phases[0])
     initial_state = "PENDING" if role_available else "BLOCKED"
     case = {
-        "schema_version": 1,
+        "schema_version": 2,
         "case_id": case_id,
         "classification": "SIMULATED",
         "origin_phase": origin,
@@ -198,7 +198,8 @@ def _gate_errors(
             errors.append("RUNTIME verification evidence requires command, exit_code 0, and stdout or stderr result")
     if phase_id == "conclusao":
         prior_phases = [item.get("name") for item in routing.get("phases", []) if item.get("name") != phase.get("name")]
-        passed_phases = {event.get("phase") for event in prior_events if event.get("new_state") == "PASS"}
+        passed_phases = {event.get("phase") for event in prior_events
+                         if isinstance(event, dict) and event.get("new_state") == "PASS"}
         missing_phases = [name for name in prior_phases if name not in passed_phases]
         if missing_phases:
             errors.append(f"conclusion requires preceding phase gates to PASS: {missing_phases}")
@@ -232,12 +233,15 @@ def _gate_errors(
         if not isinstance(required_record, list) or not required_record or any(not isinstance(key, str) or not key.strip() for key in required_record):
             errors.append("routing matrix astra_escalation.required_record must declare required fields")
         elif opinions:
-            known_evidence_ids = {
-                item.get("id")
-                for event in prior_events
-                for item in event.get("evidence", [])
-                if isinstance(item, dict) and isinstance(item.get("id"), str)
-            }
+            known_evidence_ids = set()
+            for event in prior_events:
+                if not isinstance(event, dict):
+                    continue
+                prior_evidence = event.get("evidence")
+                if not isinstance(prior_evidence, list):
+                    continue
+                known_evidence_ids.update(item["id"] for item in prior_evidence
+                                          if isinstance(item, dict) and isinstance(item.get("id"), str))
             known_evidence_ids.update(item.get("id") for item in evidence if isinstance(item.get("id"), str))
             for field in required_record:
                 if field not in {"astra_reason", "related_evidence", "coordinator_decision"}:
@@ -320,6 +324,9 @@ def transition_case(
             raise ValueError("; ".join(gate_errors))
 
     result = json.loads(json.dumps(case, ensure_ascii=False))
+    if result.get("schema_version") == 1:
+        result["schema_version"] = 2
+        result["genesis_hash"] = _genesis_hash(result)
     previous_hash = result["ledger"][-1]["event_hash"] if result["ledger"] else "0" * 64
     event = {
         "sequence": len(result["ledger"]) + 1,
@@ -355,6 +362,11 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
     if not isinstance(case, dict):
         return ["case must be an object"]
     errors: list[str] = []
+    schema_version = case.get("schema_version")
+    if schema_version == 1 and case.get("ledger"):
+        errors.append("schema_version 1 ledgers require migration to version 2; recreate or explicitly migrate each event with historical model snapshots and evidence SHA-256 hashes")
+    elif schema_version not in {1, 2}:
+        errors.append(f"unsupported schema_version {schema_version!r}; create a version 2 case")
     if not isinstance(case.get("case_id"), str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{1,63}", case.get("case_id", "")):
         errors.append("case id is missing or invalid")
     if case.get("classification") != "SIMULATED":

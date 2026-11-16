@@ -2,6 +2,8 @@
 
 O manifesto JSON é uma trilha de validação **SIMULATED**. Ele exercita ordem, critérios de gate, referências e consistência do fluxo MASP; não concede autoridade de segurança, não autentica pessoas ou agentes e não prova que um modelo executou o trabalho. O programa não dispõe de uma identidade runtime ou assinatura confiável para coordenador, aprovador humano ou Astra. Campos `actor`, `approved_by`, `role`, `model`, `opinion` e classificação de evidência são declarações fornecidas por quem chama a CLI.
 
+Casos novos usam `schema_version: 2`, que registra snapshots históricos de disponibilidade e hashes SHA-256 de evidências. O validador aceita versão 1 somente para manifestos sem eventos (como fichas ainda não iniciadas). Ledgers de versão 1 são rejeitados com orientação de migração porque não registram snapshots verificáveis; recalcule/recrie cada evento no schema 2 com as evidências originais disponíveis. Evidências sem hash também falham na validação para impedir que conteúdo alterado seja aceito sem aviso.
+
 ## Campos do manifesto
 
 | Campo | Uso |

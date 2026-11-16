@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from masp_skill.case import GATE_REQUIREMENTS, _event_hash, _gate_errors, case_revision, create_case, current_model_availability, transition_case, validate_case, validate_parallel_tasks
+from masp_skill.case import GATE_REQUIREMENTS, _event_hash, _gate_errors, _genesis_hash, case_revision, create_case, current_model_availability, transition_case, validate_case, validate_parallel_tasks
 from masp_skill.cli import main
 from masp_skill.evidence import make_evidence, validate_evidence
 from masp_skill.routing import load_routing
@@ -64,12 +64,30 @@ def move_to_phase(case, target, tmp_path, routing=ROUTING):
 
 def test_case_happy_path_records_hash_chained_events_and_validates(tmp_path):
     case = create_case('MASP-001', ROUTING)
+    assert case['schema_version'] == 2
     assert case['classification'] == 'SIMULATED'
     assert case['current_phase'] == 'Identificação'
     case = start(case, tmp_path)
     case = pass_gate(case, tmp_path)
     assert case['ledger'][1]['previous_hash'] == case['ledger'][0]['event_hash']
     assert validate_case(case, ROUTING, tmp_path) == []
+
+
+def test_legacy_schema_one_event_ledger_has_explicit_migration_error(tmp_path):
+    case = create_case('MASP-LEGACY', ROUTING)
+    case['schema_version'] = 1
+    case['ledger'] = [{}]
+    errors = validate_case(case, ROUTING, tmp_path)
+    assert any('schema_version 1' in error and 'migration' in error for error in errors)
+
+
+def test_first_transition_migrates_empty_legacy_manifest_to_schema_two(tmp_path):
+    case = create_case('MASP-LEGACY-EMPTY', ROUTING)
+    case['schema_version'] = 1
+    case['genesis_hash'] = _genesis_hash(case)
+    migrated = start(case, tmp_path)
+    assert migrated['schema_version'] == 2
+    assert validate_case(migrated, ROUTING, tmp_path) == []
 
 
 def test_event_model_availability_is_historical_and_evidence_content_is_hashed(tmp_path):
@@ -245,6 +263,42 @@ def test_astra_historical_pass_survives_current_unavailability(tmp_path):
     unavailable_now = deepcopy(ROUTING)
     unavailable_now['roles']['masp-especialista-critico']['available'] = False
     assert validate_case(case, unavailable_now, tmp_path) == []
+
+
+def test_malformed_earlier_evidence_does_not_crash_astra_reference_replay(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-ASTRA-MALFORMED-REF', ROUTING, high_risk=True), verification_phase, tmp_path)
+    proof = evidence(tmp_path, 'malformed-ref-related.json', classification='RUNTIME')
+    opinion = evidence(tmp_path, 'malformed-ref-astra.json', classification='RUNTIME', role='masp-especialista-critico',
+                       model='gpt-6-astra', effort='medium', opinion='PASS', astra_reason='Audit.',
+                       related_evidence=[proof['id']], coordinator_decision='Accepted.')
+    case = transition_case(case, 'PASS', 'masp-coordenador', [proof, opinion], ROUTING, root=tmp_path)
+    case['ledger'][0]['evidence'] = None
+    previous = '0' * 64
+    for event in case['ledger']:
+        event['previous_hash'] = previous
+        event['event_hash'] = _event_hash(event)
+        previous = event['event_hash']
+    assert validate_case(case, ROUTING, tmp_path)
+
+
+def test_cli_case_commands_require_agent_config_when_not_found(tmp_path, capsys):
+    import shutil
+
+    routing_path = tmp_path / 'docs' / 'masp' / 'masp-routing.toml'
+    routing_path.parent.mkdir(parents=True)
+    shutil.copyfile(MATRIX, routing_path)
+    output_path = tmp_path / 'case.json'
+    result = main(['new-case', '--id', 'MASP-NO-CONFIG', '--output', str(output_path), '--root', str(tmp_path),
+                   '--routing', str(routing_path)])
+    assert result == 1
+    assert 'agent config' in capsys.readouterr().out.lower()
+    assert not output_path.exists()
+    case_path = tmp_path / 'existing.json'
+    case_path.write_text(json.dumps(create_case('MASP-NO-CONFIG-VALIDATE', ROUTING), ensure_ascii=False), encoding='utf-8')
+    result = main(['validate-case', '--case', str(case_path), '--root', str(tmp_path), '--routing', str(routing_path)])
+    assert result == 1
+    assert 'agent config' in capsys.readouterr().out.lower()
 
 
 def test_high_risk_astra_opinion_rejects_nonzero_exit(tmp_path):
