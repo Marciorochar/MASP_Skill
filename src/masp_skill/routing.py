@@ -64,6 +64,9 @@ def validate_agent_configs(routing: dict[str, Any], agents: dict[str, dict[str, 
     for name in sorted(set(agents) - set(expected_roles)):
         errors.append(f"unexpected agent config for {name}")
     for name, expected in expected_roles.items():
+        if not isinstance(expected, dict):
+            errors.append(f"routing role {name} must be a table")
+            continue
         agent = agents.get(name)
         if not isinstance(agent, dict):
             continue

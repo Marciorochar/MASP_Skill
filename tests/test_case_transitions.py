@@ -7,6 +7,7 @@ import pytest
 
 from masp_skill.case import GATE_REQUIREMENTS, _event_hash, _gate_errors, _genesis_hash, case_revision, create_case, current_model_availability, transition_case, validate_case, validate_parallel_tasks
 from masp_skill.cli import main
+from masp_skill import cli
 from masp_skill.evidence import make_evidence, validate_evidence
 from masp_skill.routing import load_routing
 
@@ -341,6 +342,32 @@ def test_cli_case_commands_require_agent_config_when_not_found(tmp_path, capsys)
     result = main(['validate-case', '--case', str(case_path), '--root', str(tmp_path), '--routing', str(routing_path)])
     assert result == 1
     assert 'agent config' in capsys.readouterr().out.lower()
+
+
+@pytest.mark.parametrize('command', ['validate-routing', 'new-case', 'transition', 'validate-case'])
+def test_cli_malformed_role_table_returns_validation_error_not_traceback(tmp_path, monkeypatch, capsys, command):
+    malformed = deepcopy(ROUTING)
+    malformed['roles']['masp-identificador'] = 'not a table'
+    monkeypatch.setattr(cli, 'load_routing', lambda _: malformed)
+    case_path = tmp_path / 'case.json'
+    case_path.write_text(json.dumps(create_case('MASP-MALFORMED-ROLE', ROUTING), ensure_ascii=False), encoding='utf-8')
+    proof = evidence(tmp_path, 'malformed-role-proof.json')
+    evidence_path = tmp_path / 'evidence.json'
+    evidence_path.write_text(json.dumps([proof], ensure_ascii=False), encoding='utf-8')
+    common = ['--routing', str(MATRIX), '--root', str(tmp_path)]
+    if command == 'validate-routing':
+        args = ['validate-routing', '--routing', str(MATRIX)]
+    elif command == 'new-case':
+        args = ['new-case', '--id', 'MASP-MALFORMED-ROLE', '--output', str(tmp_path / 'new.json'), *common]
+    elif command == 'transition':
+        args = ['transition', '--case', str(case_path), '--state', 'IN_PROGRESS', '--actor', 'masp-coordenador',
+                '--evidence', str(evidence_path), '--expected-revision', case_revision(case_path.read_bytes()), *common]
+    else:
+        args = ['validate-case', '--case', str(case_path), *common]
+    result = main(args)
+    captured = capsys.readouterr()
+    assert result == 1
+    assert 'Traceback' not in captured.out
 
 
 def test_high_risk_astra_opinion_rejects_nonzero_exit(tmp_path):

@@ -178,6 +178,8 @@ def _agent_config_root(routing_path: Path, workspace: Path) -> Path:
 
 def _effective_config_errors(routing: dict, routing_path: Path, workspace: Path) -> list[str]:
     errors = validate_routing(routing)
+    if errors:
+        return errors
     config_root = _agent_config_root(routing_path, workspace)
     if (config_root / ".codex/config.toml").is_file():
         try:
