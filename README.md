@@ -57,3 +57,14 @@ python -m masp_skill.cli runtime-smoke --root . --output-dir docs/masp/evidencia
 ```
 
 `--all-roles` amplia explicitamente a tentativa a todos os papéis e pode consumir muitos tokens. `--strict` retorna código diferente de zero quando existem checagens `FAIL` ou `BLOCKED`. Papéis não sondados são `NOT_RUN`; descoberta completa continua `BLOCKED`. O GitHub Actions não chama esse smoke e não executa inferência paga. Relatórios históricos de smoke não comprovam funcionamento das novas configurações.
+
+
+## PR #4 — Robustez e prova mínima de um agente
+
+O replay rejeita estados JSON não hashable após `FAIL`, e o roteamento verifica a correspondência exata entre os oito nomes/IDs e os respectivos gates. A suíte inclui testes negativos específicos e validação do parser JSONL.
+
+O smoke mantém a tentativa padrão restrita a **um único agente não crítico** (`masp-identificador`). Ele inventaria os dez contratos, mas **não invoca o especialista crítico Astra**. `--all-roles` é uma opção de investigação posterior para os oito agentes de fase, exclui Astra e **não deve ser usada antes de comprovar a primeira delegação**. A presença de `wait` ou de um marcador textual não comprova `spawn_agent`; mesmo com receptor identificado, o modelo/esforço efetivos só podem ser declarados quando o runtime os emitir explicitamente.
+
+`--parallel-tasks` valida apenas os caminhos de escrita das tarefas fornecidas. Não é um monitor de concorrência nem garante isolamento técnico das ações reais no Codex. As regras de agentes presentes no TOML continuam declarativas até serem observadas em runtime.
+
+O procedimento local sem mudanças de produção está em [`docs/masp/VALIDACAO-RUNTIME-PR4.md`](docs/masp/VALIDACAO-RUNTIME-PR4.md) e a matriz de pendências em [`docs/masp/RELATORIO-AUDITORIA-PR4.md`](docs/masp/RELATORIO-AUDITORIA-PR4.md). Testes do GitHub Actions não equivalem a delegações reais.
