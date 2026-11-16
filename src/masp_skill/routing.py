@@ -215,8 +215,11 @@ def validate_routing(data: dict[str, Any]) -> list[str]:
         if astra.get("first_test_failure_triggers") is not False:
             errors.append("first test failure must not trigger astra automatically")
     states = policies.get("states", {})
-    if not isinstance(states, dict) or not isinstance(states.get("values"), list) or set(states["values"]) != {
-        "PENDING", "IN_PROGRESS", "PASS", "FAIL", "BLOCKED", "NOT_RUN"
-    }:
+    if (
+        not isinstance(states, dict)
+        or not isinstance(states.get("values"), list)
+        or any(not isinstance(value, str) for value in states["values"])
+        or set(states["values"]) != {"PENDING", "IN_PROGRESS", "PASS", "FAIL", "BLOCKED", "NOT_RUN"}
+    ):
         errors.append("policies must declare the six supported states")
     return errors
