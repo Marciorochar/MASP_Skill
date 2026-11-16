@@ -68,3 +68,11 @@ Não foi invocado `masp-especialista-critico` (Astra), nem realizado `runtime-sm
 4. A proteção da `main` e uma revisão humana do PR antes de merge são recomendadas em configuração administrativa separada.
 
 **Parecer:** apto à revisão do PR por evidência de CI no escopo Python/documental; eficácia e observabilidade multiagente **não comprovadas**.
+
+## Atualização pós-merge (verificação remota)
+
+Durante a revisão, o [PR #7](https://github.com/Marciorochar/MASP_Skill/pull/7) foi **mesclado externamente** à `main` em 2026-11-16 20:41:41 UTC, trazendo o código e as instruções da Observação Universal v2 até o commit `9b5a012e38d69adf684d5c13ff019e5212448319`. O merge resultou no commit `d153bf7ad5f189b9f612c91ab35a4092e4300ceb`.
+
+A [CI da `main`, run 43952422445](https://github.com/Marciorochar/MASP_Skill/actions/runs/43952422445), confirmou **152 passed, 1 skipped, 0 failed** tanto no Ubuntu quanto no Windows, com roteamento e fixture de caso/ledger aprovados. Essa comprovação não inclui a execução real de agentes Codex.
+
+Este relatório foi criado **após** o merge do PR #7 e, portanto, será submetido separadamente como documentação, sem reabrir a implementação nem alterar a `main` diretamente.
