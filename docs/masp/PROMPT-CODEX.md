@@ -3,7 +3,7 @@
 Use este prompt depois de abrir o workspace isolado que receberá a investigação. Substitua os valores entre colchetes por caminhos e identificadores reais; confirme os limites do workspace antes de qualquer escrita.
 
 ```text
-Conduza o caso [ID MASP] pelo fluxo de oito fases descrito em docs/masp/MASP-ARQUITETURA.md e na skill local skills/masp/SKILL.md.
+Conduza o caso [ID MASP] pelo fluxo de oito fases descrito em docs/masp/MASP-ARQUITETURA.md e na skill local .agents/skills/masp/SKILL.md.
 
 Workspace de trabalho: [CAMINHO DO WORKSPACE ISOLADO]
 Projeto/fonte em modo somente leitura: [CAMINHO DA FONTE, SE APLICÁVEL]
