@@ -181,3 +181,10 @@ def test_universal_contract_docs_and_synthetic_corpus():
     assert len({c["id"] for c in cases["casos"]}) == len(cases["casos"])
     assert all(c["entrada"].strip() and c["invariantes"] for c in cases["casos"])
     assert "sintéticas" in cases["natureza"]
+
+
+def test_extremely_large_quantitative_measurement_is_rejected_without_crash():
+    record = valid_record("quantitative")
+    record["baseline"]["value"] = 10 ** 400
+    errors = validate_observation_record(record)
+    assert any("baseline.value" in issue for issue in errors)
