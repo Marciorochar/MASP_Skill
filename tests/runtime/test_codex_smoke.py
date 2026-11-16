@@ -207,3 +207,63 @@ def test_runner_executes_catalog_and_attempts_runtime_smokes(tmp_path, monkeypat
     assert all(check["status"] != "NOT_RUN" for check in report["checks"] if check.get("classification") == "RUNTIME")
     assert next(check for check in report["checks"] if check["name"] == "MASP skill load")["status"] == "BLOCKED"
 
+
+
+def test_legacy_skill_stub_does_not_count_as_discovered_project_skill(tmp_path, monkeypatch):
+    (tmp_path / ".codex").mkdir()
+    (tmp_path / ".codex/config.toml").write_text("[agents]\nmax_threads=1\n", encoding="utf-8")
+    (tmp_path / "skills/masp").mkdir(parents=True)
+    (tmp_path / "skills/masp/SKILL.md").write_text("# Legacy stub\n", encoding="utf-8")
+    monkeypatch.setattr(cli.shutil, "which", lambda _: None)
+    report = cli.run_codex_smoke(tmp_path, Path("evidence"))
+    check = next(item for item in report["checks"] if item["name"] == "local skill file")
+    assert check["status"] == "FAIL"
+
+
+def test_smoke_requests_only_one_subagent_by_default(tmp_path, monkeypatch):
+    (tmp_path / ".codex/agents").mkdir(parents=True)
+    (tmp_path / ".agents/skills/masp").mkdir(parents=True)
+    (tmp_path / ".agents/skills/masp/SKILL.md").write_text("# MASP\n", encoding="utf-8")
+    (tmp_path / ".codex/config.toml").write_text(
+        '[agents]\nmax_threads=3\n'
+        '[agents.masp-coordenador]\nconfig_file="agents/masp-coordenador.toml"\n'
+        '[agents.masp-identificador]\nconfig_file="agents/masp-identificador.toml"\n'
+        '[agents.masp-observador]\nconfig_file="agents/masp-observador.toml"\n',
+        encoding="utf-8",
+    )
+    for name, model, effort in (
+        ("masp-coordenador", "gpt-6.1-sol", "medium"),
+        ("masp-identificador", "gpt-6-luna", "low"),
+        ("masp-observador", "gpt-6-luna", "medium"),
+    ):
+        (tmp_path / f".codex/agents/{name}.toml").write_text(
+            f'model="{model}"\nmodel_reasoning_effort="{effort}"\n', encoding="utf-8",
+        )
+    prompts = []
+
+    def fake_run(args, **kwargs):
+        class Result:
+            returncode = 0
+            stderr = ""
+            stdout = "ok"
+        result = Result()
+        if "models" in args:
+            result.stdout = json.dumps({"models": [
+                {"slug": "gpt-6.1-sol", "supported_reasoning_levels": [{"effort": "medium"}]},
+                {"slug": "gpt-6-luna", "supported_reasoning_levels": [{"effort": "low"}, {"effort": "medium"}]},
+            ]})
+        if "exec" in args:
+            prompts.append(args[-1])
+            result.stdout = '{"type":"turn.completed"}\n'
+        return result
+
+    monkeypatch.setattr(cli.shutil, "which", lambda _: "codex")
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+    report = cli.run_codex_smoke(tmp_path, Path("evidence"))
+    assert len(prompts) == 1
+    assert "masp-identificador" in prompts[0]
+    assert "masp-observador" not in prompts[0]
+    observer = next(c for c in report["checks"] if c["name"] == "delegation masp-observador")
+    assert observer["status"] == "NOT_RUN"
+    discovery = next(c for c in report["checks"] if c["name"] == "local agent discovery")
+    assert discovery["status"] == "BLOCKED"
