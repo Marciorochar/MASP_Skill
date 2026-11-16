@@ -26,8 +26,8 @@ def valid_record(conclusion="supported"):
         "analysis_scope": "Documentos sintéticos, sem coleta real",
         "methods": [{"name": "Triangulação documental", "rationale": "Comparar relatos e registros independentes"}],
         "sources": [
-            {"id": "E1", "origin": "Fonte sintética A", "description": "Registro fictício de ocorrência", "fact_class": "RELATO_NAO_VERIFICADO"},
-            {"id": "E2", "origin": "Fonte sintética B", "description": "Leitura fictícia de ambiente", "fact_class": "RELATO_NAO_VERIFICADO"},
+            {"id": "E1", "origin": "Fonte sintética A", "description": "Registro fictício de ocorrência", "fact_class": "FATO_VERIFICADO"},
+            {"id": "E2", "origin": "Fonte sintética B", "description": "Leitura fictícia de ambiente", "fact_class": "FATO_VERIFICADO"},
             {"id": "E3", "origin": "Fonte sintética C", "description": "Declaração sobre evento", "fact_class": "RELATO_NAO_VERIFICADO"},
         ],
         "hypotheses": [
@@ -174,6 +174,19 @@ def test_corroborated_must_not_be_not_run_or_have_no_support():
     record["hypotheses"][0]["evidence_for"] = []
     errors = validate_analysis_record(record)
     assert any("CORROBORADA" in x for x in errors)
+
+
+def test_corroborated_cause_needs_attributed_verified_observation():
+    record = valid_record()
+    record["sources"][0]["fact_class"] = "RELATO_NAO_VERIFICADO"
+    record["sources"][1]["fact_class"] = "RELATO_NAO_VERIFICADO"
+    assert any("CORROBORADA" in x for x in validate_analysis_record(record))
+
+
+def test_documentary_triangulation_is_not_two_copies_of_same_origin():
+    record = valid_record()
+    record["sources"][1]["origin"] = record["sources"][0]["origin"]
+    assert any("evidence_basis" in x for x in validate_analysis_record(record))
 
 
 def test_refuted_requires_contrary_evidence():
