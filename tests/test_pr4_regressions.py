@@ -142,3 +142,35 @@ def test_collab_spawn_without_explicit_role_must_not_be_attributed():
     result = _delegation_events(json.dumps(record), ["masp-identificador"])["masp-identificador"]
     assert result["tool_call"] is False
     assert result["completion"] is False
+
+
+def test_no_cli_marks_astra_as_not_run_not_as_a_failed_delegation(tmp_path, monkeypatch):
+    from masp_skill import cli
+    agents_dir = tmp_path / ".codex/agents"
+    agents_dir.mkdir(parents=True)
+    (tmp_path / ".codex/config.toml").write_text(
+        '[agents]\nmax_threads=3\n[agents.masp-especialista-critico]\n'
+        'config_file="agents/masp-especialista-critico.toml"\n',
+        encoding="utf-8",
+    )
+    (agents_dir / "masp-especialista-critico.toml").write_text(
+        'model="gpt-6-astra"\nmodel_reasoning_effort="medium"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(cli.shutil, "which", lambda _: None)
+    report = cli.run_codex_smoke(tmp_path, Path("audit"))
+    status = next(c["status"] for c in report["checks"]
+                  if c["name"] == "delegation masp-especialista-critico")
+    assert status == "NOT_RUN"
+
+
+def test_historical_wait_only_codex_jsonl_cannot_prove_a_delegation():
+    # Repository artifact is historical, not a new runtime session.
+    import json
+    artifact = json.loads((ROOT / "docs/masp/evidencias/codex-smoke.json").read_text(encoding="utf-8"))
+    executions = [c for c in artifact["commands"]
+                  if isinstance(c.get("command"), list) and "exec" in c["command"]]
+    assert len(executions) == 1
+    result = _delegation_events(executions[0].get("stdout", ""), ["masp-identificador"])
+    assert result["masp-identificador"]["tool_call"] is False
+    assert result["masp-identificador"]["completion"] is False
