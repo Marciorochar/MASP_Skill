@@ -141,7 +141,7 @@ def _local_smoke_agents(root: Path) -> dict[str, dict]:
     config = tomllib.loads((root / ".codex/config.toml").read_text(encoding="utf-8"))
     result = {}
     for name, entry in config.get("agents", {}).items():
-        if name in ("max_threads", "masp-coordenador", "masp-especialista-critico") or not isinstance(entry, dict):
+        if name in ("max_threads", "masp-coordenador") or not isinstance(entry, dict):
             continue
         path = (root / ".codex" / entry["config_file"]).resolve()
         path.relative_to((root / ".codex").resolve())
@@ -196,6 +196,8 @@ def _delegation_events(stdout: str, roles: list[str]) -> dict[str, dict]:
     calls: list[dict] = []
     agents: list[dict] = []
     completions: list[dict] = []
+    receiver_starts: list[dict] = []
+    receiver_completions: list[dict] = []
     for line in stdout.splitlines():
         try:
             event = json.loads(line)
@@ -210,12 +212,29 @@ def _delegation_events(stdout: str, roles: list[str]) -> dict[str, dict]:
         status = item.get("status")
         call_id = item.get("call_id")
         agent_id = item.get("agent_id")
-        role = (item.get("agent_name") or item.get("target_agent") or item.get("name") or item.get("agent"))
+        role = (item.get("agent_name") or item.get("target_agent") or
+                item.get("agent_type") or item.get("name") or item.get("agent"))
         arguments = item.get("arguments")
         if not isinstance(role, str) and isinstance(arguments, dict):
-            role = arguments.get("agent_name") or arguments.get("name")
+            role = arguments.get("agent_type") or arguments.get("agent_name") or arguments.get("name")
         if not isinstance(role, str) or role not in roles:
             role = None
+        # Newer Codex CLI JSONL exposes recipients and their states on
+        # collab_tool_call. Require an explicit role, one receiver, a start,
+        # a matching completion, and a completed receiver state. Never infer
+        # a role from the assistant's prose or from a generic wait() call.
+        if event_type == "collab_tool_call" and item.get("tool") in {
+            "spawn_agent", "spawnAgent", "create_agent", "delegate_to_agent"
+        }:
+            recipients = item.get("receiver_thread_ids")
+            if (isinstance(recipients, list) and len(recipients) == 1
+                    and isinstance(recipients[0], str) and recipients[0]):
+                record = {"role": role, "thread": recipients[0],
+                          "item_id": item.get("id"), "item": item}
+                if event.get("type") == "item.started" and role is not None:
+                    receiver_starts.append(record)
+                elif event.get("type") == "item.completed":
+                    receiver_completions.append(record)
         if not isinstance(call_id, str) or not call_id:
             continue
         if event_type == "collab_tool_call" and item.get("tool") in {"spawn_agent", "spawnAgent", "create_agent", "delegate_to_agent"}:
@@ -254,6 +273,37 @@ def _delegation_events(stdout: str, roles: list[str]) -> dict[str, dict]:
                 found[call["role"]]["event_excerpt"] = json.dumps(
                     {"call": call["item"], "agent": agent["item"], "completion": completion["item"]},
                     ensure_ascii=False)[:2000]
+    for start in receiver_starts:
+        for completed in receiver_completions:
+            if completed["thread"] != start["thread"]:
+                continue
+            if completed["role"] is not None and completed["role"] != start["role"]:
+                continue
+            if (start["item_id"] is not None and completed["item_id"] is not None
+                    and start["item_id"] != completed["item_id"]):
+                continue
+            states = completed["item"].get("agents_states")
+            state = states.get(start["thread"]) if isinstance(states, dict) else None
+            if not isinstance(state, dict) or state.get("status") not in {
+                "completed", "succeeded", "done"
+            }:
+                continue
+            role = start["role"]
+            record = found[role]
+            record["tool_call"] = True
+            record["completion"] = True
+            record["call_id"] = start["item_id"]
+            record["agent_id"] = start["thread"]
+            # Only explicit effective values may be described as observed.
+            record["observed_model"] = state.get("effective_model") if isinstance(
+                state.get("effective_model"), str
+            ) else None
+            record["observed_effort"] = state.get("effective_effort") if isinstance(
+                state.get("effective_effort"), str
+            ) else None
+            record["event_excerpt"] = json.dumps({
+                "call": start["item"], "completion": completed["item"]
+            }, ensure_ascii=False)[:2000]
     return found
 
 
@@ -365,9 +415,14 @@ def run_codex_smoke(root: Path, output_dir: Path, *, all_roles: bool = False) ->
         report["checks"].append({"name": "role model/effort catalog compatibility", "classification": "RUNTIME",
                                  "status": "PASS" if phases and all(x["catalog_status"] == "PASS" for x in phases.values()) else "FAIL",
                                  "roles": phases})
-        configured_roles = [name for name in local_agents if name != "masp-coordenador"]
+        configured_roles = [name for name in local_agents
+                            if name not in {"masp-coordenador", "masp-especialista-critico"}]
         roles = configured_roles if all_roles else configured_roles[:1]
         unprobed_roles = configured_roles[len(roles):]
+        # Astra is inventoried, not invoked: a critical review needs separate
+        # authorization and proof of the first noncritical delegation.
+        if "masp-especialista-critico" in local_agents:
+            unprobed_roles.append("masp-especialista-critico")
         coordinator = local_agents.get("masp-coordenador", {})
         prompt = (
             "You are testing this repository's local MASP coordinator and skill in a read-only smoke. "
@@ -494,7 +549,7 @@ def main(argv: list[str] | None = None) -> int:
     smoke.add_argument("--root", type=Path, default=Path.cwd())
     smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
     smoke.add_argument("--strict", action="store_true", help="return nonzero when a check fails or is blocked")
-    smoke.add_argument("--all-roles", action="store_true", help="explicitly attempt all configured roles; may incur substantial inference cost")
+    smoke.add_argument("--all-roles", action="store_true", help="explicitly attempt all noncritical phase roles (excludes Astra); costly and not for initial validation")
 
     args = parser.parse_args(argv)
     try:
