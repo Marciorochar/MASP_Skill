@@ -161,6 +161,8 @@ def test_accepts_declared_hypothesis_status_vocabulary(status):
             "evidence_ids": ["E1"],
             "limitations": "Somente teste"
         }
+    if status == "REFUTADA":
+        record["hypotheses"][0]["evidence_against"] = ["E3"]
     assert validate_analysis_record(record) == []
 
 
