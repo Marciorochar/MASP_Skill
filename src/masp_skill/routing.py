@@ -9,6 +9,10 @@ PHASES = (
     "Identificação", "Observação", "Análise", "Plano de ação",
     "Ação", "Verificação", "Padronização", "Conclusão",
 )
+PHASE_IDS = (
+    "identificacao", "observacao", "analise", "plano-de-acao",
+    "acao", "verificacao", "padronizacao", "conclusao",
+)
 ROLE_MODELS = {
     "masp-coordenador": ("gpt-6.1-sol", "medium"),
     "masp-identificador": ("gpt-6-luna", "low"),
