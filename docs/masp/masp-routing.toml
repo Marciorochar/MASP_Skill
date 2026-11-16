@@ -61,7 +61,7 @@ inputs = ["Relato inicial do problema", "Contexto e restrições conhecidos"]
 outputs = ["Declaração do problema", "Escopo e métrica de sucesso"]
 tools = ["filesystem", "version_control"]
 access_modes = ["read-only"]
-returns = ["Conclusão"]
+returns = ["Identificação"]
 [[phases.skills]]
 name = "superpowers:brainstorming"
 path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/brainstorming/SKILL.md"

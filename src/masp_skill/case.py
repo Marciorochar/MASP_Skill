@@ -173,6 +173,12 @@ def _gate_errors(
             for item in runtime_records
         ):
             errors.append("RUNTIME verification evidence requires command, integer exit_code, and stdout or stderr result")
+    if phase_id == "conclusao":
+        prior_phases = [item.get("name") for item in routing.get("phases", []) if item.get("name") != phase.get("name")]
+        passed_phases = {event.get("phase") for event in prior_events if event.get("new_state") == "PASS"}
+        missing_phases = [name for name in prior_phases if name not in passed_phases]
+        if missing_phases:
+            errors.append(f"conclusion requires preceding phase gates to PASS: {missing_phases}")
     if case.get("high_risk") and phase_id in {"verificacao", "conclusao"}:
         astra_ok, astra_contract_error = _astra_contract(routing)
         if not astra_ok:
@@ -190,6 +196,28 @@ def _gate_errors(
         ]
         if not opinions:
             errors.append("high-risk gate requires a declared RUNTIME Astra opinion with command and result; the claim is not authenticated")
+        escalation = routing.get("policies", {}).get("astra_escalation", {})
+        required_record = escalation.get("required_record")
+        if not isinstance(required_record, list) or not required_record or any(not isinstance(key, str) or not key.strip() for key in required_record):
+            errors.append("routing matrix astra_escalation.required_record must declare required fields")
+        elif opinions:
+            known_evidence_ids = {
+                item.get("id")
+                for event in prior_events
+                for item in event.get("evidence", [])
+                if isinstance(item, dict) and isinstance(item.get("id"), str)
+            }
+            known_evidence_ids.update(item.get("id") for item in evidence if isinstance(item.get("id"), str))
+            for field in required_record:
+                if field not in {"astra_reason", "related_evidence", "coordinator_decision"}:
+                    errors.append(f"unsupported Astra required_record field {field!r}")
+                    continue
+                value = opinions[0].get(field)
+                if field == "related_evidence":
+                    if not isinstance(value, list) or not value or any(not isinstance(item, str) or item not in known_evidence_ids or item == opinions[0].get("id") for item in value):
+                        errors.append("Astra related_evidence must be a non-empty list of existing, related evidence IDs")
+                elif not isinstance(value, str) or not value.strip():
+                    errors.append(f"Astra {field} must be non-empty")
     return errors
 
 
@@ -230,6 +258,9 @@ def transition_case(
         previous_index = phase_names.index(current_phase) if current_phase in phase_names else -1
         failed_phase = _phase(routing, current_phase)
         valid_return = current_state == "FAIL" and target_phase in failed_phase.get("returns", [])
+        if valid_return:
+            target_index = phase_names.index(target_phase) if target_phase in phase_names else len(phase_names)
+            valid_return = target_index < previous_index
         valid_next = (
             current_state == "PASS" and previous_index >= 0
             and previous_index + 1 < len(phase_names)
@@ -333,8 +364,11 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
                 allowed = current_index >= 0 and current_index + 1 < len(names) and names[current_index + 1] == event.get("phase")
             elif state == "FAIL":
                 prior_phase = next((item for item in phases if item.get("name") == phase_name), {})
+                current_index = names.index(phase_name) if phase_name in names else -1
+                target_index = names.index(event.get("phase")) if event.get("phase") in names else len(names)
                 allowed = (
                     event.get("phase") in prior_phase.get("returns", [])
+                    and target_index < current_index
                     and event.get("new_state") in {"IN_PROGRESS", "BLOCKED", "NOT_RUN"}
                 )
             if not allowed:

@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from masp_skill.case import GATE_REQUIREMENTS, _event_hash, case_revision, create_case, transition_case, validate_case, validate_parallel_tasks
+from masp_skill.case import GATE_REQUIREMENTS, _event_hash, _gate_errors, case_revision, create_case, transition_case, validate_case, validate_parallel_tasks
 from masp_skill.cli import main
 from masp_skill.evidence import make_evidence, validate_evidence
 from masp_skill.routing import load_routing
@@ -82,6 +82,40 @@ def test_only_next_phase_after_pass_and_declared_return_after_fail_are_valid(tmp
     assert case['current_phase'] == 'Observação'
     with pytest.raises(ValueError, match='phase|fase'):
         transition_case(case, 'IN_PROGRESS', 'masp-coordenador', [evidence(tmp_path, 'skip.json')], ROUTING, phase='Conclusão', root=tmp_path)
+
+
+def test_identification_fail_cannot_jump_to_conclusion_even_if_return_is_declared(tmp_path):
+    case = start(create_case('MASP-IDENT-FAIL', ROUTING), tmp_path)
+    case = transition_case(case, 'FAIL', 'masp-coordenador', [evidence(tmp_path, 'identification-fail.json')], ROUTING, root=tmp_path)
+    with pytest.raises(ValueError, match='phase|fase|return|retorno'):
+        transition_case(case, 'IN_PROGRESS', 'masp-coordenador', [evidence(tmp_path, 'conclusion-skip.json')], ROUTING, phase='Conclusão', root=tmp_path)
+
+
+def test_replay_rejects_rehashed_jump_to_conclusion(tmp_path):
+    case = start(create_case('MASP-REPLAY-SKIP', ROUTING), tmp_path)
+    case['ledger'][0]['phase'] = 'Conclusão'
+    case['ledger'][0]['event_hash'] = _event_hash(case['ledger'][0])
+    case['ledger'].append({
+        'sequence': 2,
+        'phase': 'Conclusão',
+        'previous_state': 'IN_PROGRESS',
+        'new_state': 'PASS',
+        'actor': 'masp-coordenador',
+        'timestamp': '2026-11-16T12:00:00+00:00',
+        'evidence': [evidence(tmp_path, 'forged-conclusion-pass.json')],
+        'classification': 'SIMULATED',
+        'previous_hash': case['ledger'][0]['event_hash'],
+    })
+    case['ledger'][1]['event_hash'] = _event_hash(case['ledger'][1])
+    case['current_phase'] = 'Conclusão'
+    case['state'] = 'PASS'
+    assert any('preceding' in error.lower() or 'prior' in error.lower() for error in validate_case(case, ROUTING, tmp_path))
+
+
+def test_conclusion_gate_requires_every_preceding_phase_to_have_passed(tmp_path):
+    phase = next(item for item in ROUTING['phases'] if item['name'] == 'Conclusão')
+    errors = _gate_errors(create_case('MASP-CONCLUSION-GATES', ROUTING), phase, [evidence(tmp_path)], ROUTING, [])
+    assert any('preceding' in error.lower() or 'prior' in error.lower() for error in errors)
 
 
 @pytest.mark.parametrize('target_state', ['BLOCKED', 'NOT_RUN'])
@@ -170,9 +204,23 @@ def test_high_risk_verification_requires_a_reported_astra_runtime_opinion_and_av
     case = move_to_phase(create_case('MASP-ASTRA', ROUTING, high_risk=True), 'Verificação', tmp_path)
     with pytest.raises(ValueError, match='Astra|astra|audit|auditoria'):
         pass_gate(case, tmp_path, classification='RUNTIME')
-    astra = evidence(tmp_path, 'astra.json', classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='medium', opinion='PASS')
-    case = transition_case(case, 'PASS', 'masp-coordenador', [astra], ROUTING, root=tmp_path)
+    proof = evidence(tmp_path, 'related-proof.json', classification='RUNTIME')
+    astra = evidence(tmp_path, 'astra.json', classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='medium', opinion='PASS', astra_reason='High risk requires independent audit.', related_evidence=[proof['id']], coordinator_decision='Accept the declared Astra opinion for this simulation.')
+    case = transition_case(case, 'PASS', 'masp-coordenador', [proof, astra], ROUTING, root=tmp_path)
     assert case['state'] == 'PASS'
+    for field, bad_value in (('astra_reason', ''), ('related_evidence', []), ('coordinator_decision', '')):
+        for absent in (False, True):
+            suffix = 'absent' if absent else 'empty'
+            candidate = move_to_phase(create_case(f'MASP-ASTRA-{suffix}-{field}', ROUTING, high_risk=True), 'Verificação', tmp_path)
+            candidate_proof = evidence(tmp_path, f'{suffix}-{field}-related.json', classification='RUNTIME')
+            details = {'astra_reason': 'A specific high-risk audit reason.', 'related_evidence': [candidate_proof['id']], 'coordinator_decision': 'Recorded decision.'}
+            if absent:
+                details.pop(field)
+            else:
+                details[field] = bad_value
+            candidate_astra = evidence(tmp_path, f'{suffix}-{field}-astra.json', classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='medium', opinion='PASS', **details)
+            with pytest.raises(ValueError, match=field):
+                transition_case(candidate, 'PASS', 'masp-coordenador', [candidate_proof, candidate_astra], ROUTING, root=tmp_path)
     with pytest.raises(ValueError, match='Astra|astra|effort|esforço'):
         pass_gate(move_to_phase(create_case('MASP-ASTRA-EFFORT', ROUTING, high_risk=True), 'Verificação', tmp_path), tmp_path, classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='high', opinion='PASS')
     bad_routing = deepcopy(ROUTING)
