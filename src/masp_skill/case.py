@@ -431,6 +431,7 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
                 allowed = (
                     event.get("phase") in prior_phase.get("returns", [])
                     and target_index < current_index
+                    and isinstance(event.get("new_state"), str)
                     and event.get("new_state") in {"IN_PROGRESS", "BLOCKED", "NOT_RUN"}
                 )
             if not allowed:
