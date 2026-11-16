@@ -244,6 +244,15 @@ def test_runtime_verification_rejects_nonzero_exit_even_with_complete_evidence(t
         pass_gate(case, tmp_path, classification='RUNTIME', exit_code=1, stdout='failed')
 
 
+def test_runtime_verification_rejects_mixed_success_and_failed_execution_records(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-VERIFY-MIXED', ROUTING), verification_phase, tmp_path)
+    failed = evidence(tmp_path, 'failed-test.json', classification='RUNTIME', exit_code=1, stdout='test failed')
+    succeeded = evidence(tmp_path, 'successful-test.json', classification='RUNTIME', exit_code=0, stdout='another test passed')
+    with pytest.raises(ValueError, match='non-zero|nonzero|failed|exit_code'):
+        transition_case(case, 'PASS', 'masp-coordenador', [failed, succeeded], ROUTING, root=tmp_path)
+
+
 def test_high_risk_verification_requires_a_reported_astra_runtime_opinion_and_available_model(tmp_path):
     case = move_to_phase(create_case('MASP-ASTRA', ROUTING, high_risk=True), 'Verificação', tmp_path)
     with pytest.raises(ValueError, match='Astra|astra|audit|auditoria'):
@@ -252,6 +261,39 @@ def test_high_risk_verification_requires_a_reported_astra_runtime_opinion_and_av
     astra = evidence(tmp_path, 'astra.json', classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='medium', opinion='PASS', astra_reason='High risk requires independent audit.', related_evidence=[proof['id']], coordinator_decision='Accept the declared Astra opinion for this simulation.')
     case = transition_case(case, 'PASS', 'masp-coordenador', [proof, astra], ROUTING, root=tmp_path)
     assert case['state'] == 'PASS'
+
+
+def test_high_risk_astra_success_does_not_override_failed_test_record(tmp_path):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-ASTRA-TEST-FAIL', ROUTING, high_risk=True), verification_phase, tmp_path)
+    failed_test = evidence(tmp_path, 'astra-test-failed.json', classification='RUNTIME', exit_code=1, stdout='test failed')
+    successful_astra = evidence(tmp_path, 'astra-test-opinion.json', classification='RUNTIME', role='masp-especialista-critico',
+                                model='gpt-6-astra', effort='medium', opinion='PASS', exit_code=0,
+                                astra_reason='Independent review.', related_evidence=[failed_test['id']],
+                                coordinator_decision='Astra approved, but the failed test must block.')
+    with pytest.raises(ValueError, match='non-zero|nonzero|failed|exit_code'):
+        transition_case(case, 'PASS', 'masp-coordenador', [failed_test, successful_astra], ROUTING, root=tmp_path)
+
+
+@pytest.mark.parametrize('invalid_opinion', [['PASS'], {'opinion': 'PASS'}])
+def test_malformed_astra_opinion_is_rejected_in_transition_and_replay(tmp_path, invalid_opinion):
+    verification_phase = next(item['name'] for item in ROUTING['phases'] if item['id'] == 'verificacao')
+    case = move_to_phase(create_case('MASP-ASTRA-INVALID-OPINION', ROUTING, high_risk=True), verification_phase, tmp_path)
+    proof = evidence(tmp_path, f'opinion-related-{len(invalid_opinion)}.json', classification='RUNTIME')
+    astra = evidence(tmp_path, f'opinion-record-{len(invalid_opinion)}.json', classification='RUNTIME', role='masp-especialista-critico',
+                     model='gpt-6-astra', effort='medium', opinion=invalid_opinion, astra_reason='Audit.',
+                     related_evidence=[proof['id']], coordinator_decision='Recorded.')
+    with pytest.raises(ValueError, match='Astra'):
+        transition_case(case, 'PASS', 'masp-coordenador', [proof, astra], ROUTING, root=tmp_path)
+    valid_opinion = dict(astra, opinion='PASS')
+    replay_case = transition_case(case, 'PASS', 'masp-coordenador', [proof, valid_opinion], ROUTING, root=tmp_path)
+    replay_case['ledger'][-1]['evidence'][1]['opinion'] = invalid_opinion
+    previous = '0' * 64
+    for event in replay_case['ledger']:
+        event['previous_hash'] = previous
+        event['event_hash'] = _event_hash(event)
+        previous = event['event_hash']
+    assert validate_case(replay_case, ROUTING, tmp_path)
 
 
 def test_astra_historical_pass_survives_current_unavailability(tmp_path):

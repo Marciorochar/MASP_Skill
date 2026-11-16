@@ -188,14 +188,21 @@ def _gate_errors(
         runtime_records = [item for item in evidence if item.get("classification") == "RUNTIME"]
         if not runtime_records:
             errors.append("verification gate requires declared RUNTIME evidence")
-        elif not any(
+        execution_records = [item for item in runtime_records
+                             if item.get("role") != "masp-especialista-critico"
+                             and not (item.get("model") == ASTRA_MODEL and "opinion" in item)
+                             and ("command" in item or "exit_code" in item)]
+        successful_execution = lambda item: (
             isinstance(item.get("command"), str) and item["command"].strip()
             and isinstance(item.get("exit_code"), int) and not isinstance(item.get("exit_code"), bool)
             and item["exit_code"] == 0
             and (bool(item.get("stdout")) or bool(item.get("stderr")))
-            for item in runtime_records
-        ):
-            errors.append("RUNTIME verification evidence requires command, exit_code 0, and stdout or stderr result")
+        )
+        failed_execution = [item for item in execution_records if not successful_execution(item)]
+        if failed_execution:
+            errors.append("verification gate cannot PASS: every test/command execution record must have exit_code 0")
+        if not any(successful_execution(item) for item in execution_records):
+            errors.append("verification gate requires at least one successful test/command execution record apart from Astra opinion")
     if phase_id == "conclusao":
         prior_phases = [item.get("name") for item in routing.get("phases", []) if item.get("name") != phase.get("name")]
         passed_phases = {event.get("phase") for event in prior_events
@@ -219,7 +226,7 @@ def _gate_errors(
             item.get("role") == "masp-especialista-critico"
             and item.get("model") == astra_role.get("model") == ASTRA_MODEL
             and item.get("effort") == astra_role.get("effort") == ASTRA_EFFORT
-            and item.get("opinion") in {"PASS", "APPROVED"}
+            and isinstance(item.get("opinion"), str) and item.get("opinion") in {"PASS", "APPROVED"}
             and item.get("classification") == "RUNTIME"
             and isinstance(item.get("command"), str) and item["command"].strip()
             and isinstance(item.get("exit_code"), int)
