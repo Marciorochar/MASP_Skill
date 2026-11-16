@@ -293,3 +293,25 @@ def test_analysis_contract_references_universal_spec_and_methodological_limits()
         assert term.lower() in (spec + role).lower()
     for criterion in GATE_REQUIREMENTS["analise"]:
         assert criterion in spec
+
+
+@pytest.mark.parametrize("field", [
+    "sources[0].fact_class",
+    "hypotheses[0].status",
+    "hypotheses[0].verification.status",
+    "conclusion.type",
+    "conclusion.evidence_basis",
+])
+def test_malformed_enum_values_are_reported_without_crashing(field):
+    record = valid_record()
+    if field == "sources[0].fact_class":
+        record["sources"][0]["fact_class"] = []
+    elif field == "hypotheses[0].status":
+        record["hypotheses"][0]["status"] = []
+    elif field == "hypotheses[0].verification.status":
+        record["hypotheses"][0]["verification"]["status"] = []
+    elif field == "conclusion.type":
+        record["conclusion"]["type"] = []
+    else:
+        record["conclusion"]["evidence_basis"] = []
+    assert validate_analysis_record(record)
