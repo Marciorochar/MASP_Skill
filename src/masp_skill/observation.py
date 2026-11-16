@@ -89,8 +89,12 @@ def validate_observation_record(record: Any) -> list[str]:
                 errors.append("baseline.source_id must reference a declared source")
             value = baseline.get("value")
             if kind == "quantitative":
-                if (not isinstance(value, (int, float)) or isinstance(value, bool)
-                        or not math.isfinite(value)):
+                is_numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
+                try:
+                    finite = math.isfinite(value) if is_numeric else False
+                except (OverflowError, TypeError, ValueError):
+                    finite = False
+                if not finite:
                     errors.append("baseline.value must be a finite numeric measurement")
                 _required_text(baseline, "unit", "baseline", errors)
             elif not isinstance(value, str) or not value.strip():
