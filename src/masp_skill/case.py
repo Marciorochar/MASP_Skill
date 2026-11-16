@@ -95,9 +95,12 @@ def _astra_contract(routing: dict[str, Any]) -> tuple[bool, str]:
     model, effort = role.get("model"), role.get("effort")
     if model != ASTRA_MODEL or effort != ASTRA_EFFORT:
         return False, f"BLOCKED: Astra routing must declare {ASTRA_MODEL}/{ASTRA_EFFORT}, got {model!r}/{effort!r}"
-    if role.get("available", True) is False or role.get("model_available", True) is False:
-        return False, f"BLOCKED: required Astra model {ASTRA_MODEL} is unavailable; no audit substitution is made"
     return True, ASTRA_MODEL
+
+
+def _astra_current_available(routing: dict[str, Any]) -> bool:
+    role = routing.get("roles", {}).get("masp-especialista-critico", {})
+    return role.get("available", True) is not False and role.get("model_available", True) is not False
 
 
 def create_case(case_id: str, routing: dict[str, Any], *, high_risk: bool = False) -> dict[str, Any]:
@@ -130,9 +133,16 @@ def create_case(case_id: str, routing: dict[str, Any], *, high_risk: bool = Fals
 
 def _plan_approval_recorded(case: dict[str, Any], prior_events: list[dict[str, Any]]) -> bool:
     for event in prior_events:
+        if not isinstance(event, dict):
+            continue
         if event.get("phase") != "Plano de ação" or event.get("new_state") != "PASS":
             continue
-        if any(item.get("approval_type") == "human_plan" and isinstance(item.get("approved_by"), str) and item["approved_by"].strip() for item in event.get("evidence", [])):
+        items = event.get("evidence")
+        if isinstance(items, list) and any(
+            isinstance(item, dict) and item.get("approval_type") == "human_plan"
+            and isinstance(item.get("approved_by"), str) and item["approved_by"].strip()
+            for item in items
+        ):
             return True
     return False
 
@@ -144,6 +154,9 @@ def _gate_errors(
     routing: dict[str, Any],
     prior_events: list[dict[str, Any]],
     required_classification: str | None = None,
+    *,
+    historical: bool = False,
+    astra_snapshot: dict[str, Any] | None = None,
 ) -> list[str]:
     errors: list[str] = []
     phase_id = phase.get("id")
@@ -177,11 +190,12 @@ def _gate_errors(
             errors.append("verification gate requires declared RUNTIME evidence")
         elif not any(
             isinstance(item.get("command"), str) and item["command"].strip()
-            and isinstance(item.get("exit_code"), int)
+            and isinstance(item.get("exit_code"), int) and not isinstance(item.get("exit_code"), bool)
+            and item["exit_code"] == 0
             and (bool(item.get("stdout")) or bool(item.get("stderr")))
             for item in runtime_records
         ):
-            errors.append("RUNTIME verification evidence requires command, integer exit_code, and stdout or stderr result")
+            errors.append("RUNTIME verification evidence requires command, exit_code 0, and stdout or stderr result")
     if phase_id == "conclusao":
         prior_phases = [item.get("name") for item in routing.get("phases", []) if item.get("name") != phase.get("name")]
         passed_phases = {event.get("phase") for event in prior_events if event.get("new_state") == "PASS"}
@@ -192,6 +206,13 @@ def _gate_errors(
         astra_ok, astra_contract_error = _astra_contract(routing)
         if not astra_ok:
             errors.append(astra_contract_error)
+        if historical:
+            if (not isinstance(astra_snapshot, dict) or astra_snapshot.get("model") != ASTRA_MODEL
+                    or astra_snapshot.get("effort") != ASTRA_EFFORT
+                    or astra_snapshot.get("available_at_transition") is not True):
+                errors.append("historical Astra model availability snapshot is missing or invalid")
+        elif not _astra_current_available(routing):
+            errors.append(f"BLOCKED: required Astra model {ASTRA_MODEL} is unavailable; no audit substitution is made")
         astra_role = routing.get("roles", {}).get("masp-especialista-critico", {})
         opinions = [item for item in evidence if
             item.get("role") == "masp-especialista-critico"
@@ -201,6 +222,7 @@ def _gate_errors(
             and item.get("classification") == "RUNTIME"
             and isinstance(item.get("command"), str) and item["command"].strip()
             and isinstance(item.get("exit_code"), int)
+            and not isinstance(item.get("exit_code"), bool) and item["exit_code"] == 0
             and (bool(item.get("stdout")) or bool(item.get("stderr")))
         ]
         if not opinions:
@@ -288,8 +310,8 @@ def transition_case(
             raise ValueError(model_or_error)
         if case.get("high_risk") and phase_data.get("id") == "verificacao":
             astra_ok, astra_error = _astra_contract(routing)
-            if not astra_ok:
-                raise ValueError(astra_error)
+            if not astra_ok or not _astra_current_available(routing):
+                raise ValueError(astra_error if not astra_ok else f"BLOCKED: required Astra model {ASTRA_MODEL} is unavailable; no audit substitution is made")
         if phase_data.get("id") == "acao" and not _plan_approval_recorded(case, case.get("ledger", [])):
             raise ValueError("Action cannot start until the plan gate records a simulated approval")
     if target_state == "PASS":
@@ -313,6 +335,11 @@ def transition_case(
             "effort": routing.get("roles", {}).get(phase_data.get("role"), {}).get("effort"),
             "available_at_transition": _role_available(routing, phase_data)[0],
         },
+        "astra_snapshot": ({
+            "model": routing.get("roles", {}).get("masp-especialista-critico", {}).get("model"),
+            "effort": routing.get("roles", {}).get("masp-especialista-critico", {}).get("effort"),
+            "available_at_transition": _astra_current_available(routing),
+        } if case.get("high_risk") and phase_data.get("id") in {"verificacao", "conclusao"} else None),
         "classification": "SIMULATED",
         "previous_hash": previous_hash,
     }
@@ -399,7 +426,9 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
         evidence_errors = validate_evidence(event_evidence, root)
         errors.extend(f"event {index}: {issue}" for issue in evidence_errors)
         if event.get("new_state") == "PASS" and phase_data and not evidence_errors:
-            errors.extend(f"event {index}: {issue}" for issue in _gate_errors(case, phase_data, event_evidence, routing, ledger[:index - 1]))
+            errors.extend(f"event {index}: {issue}" for issue in _gate_errors(
+                case, phase_data, event_evidence, routing, ledger[:index - 1], historical=True,
+                astra_snapshot=event.get("astra_snapshot")))
         if event.get("new_state") == "IN_PROGRESS" and phase_data:
             snapshot = event.get("model_snapshot")
             if (not isinstance(snapshot, dict) or snapshot.get("role") != phase_data.get("role")
@@ -409,8 +438,12 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
                 errors.append(f"event {index} has no valid historical model availability snapshot")
             if case.get("high_risk") and phase_data.get("id") == "verificacao":
                 astra_ok, astra_error = _astra_contract(routing)
-                if not astra_ok:
-                    errors.append(f"event {index}: {astra_error}")
+                astra_snapshot = event.get("astra_snapshot")
+                if (not astra_ok or not isinstance(astra_snapshot, dict)
+                        or astra_snapshot.get("model") != ASTRA_MODEL
+                        or astra_snapshot.get("effort") != ASTRA_EFFORT
+                        or astra_snapshot.get("available_at_transition") is not True):
+                    errors.append(f"event {index}: {astra_error or 'historical Astra model availability snapshot is missing or invalid'}")
             if phase_data.get("id") == "acao" and not _plan_approval_recorded(case, ledger[:index - 1]):
                 errors.append(f"event {index}: action started before plan approval gate")
         state = event.get("new_state") if event.get("new_state") in STATES else state

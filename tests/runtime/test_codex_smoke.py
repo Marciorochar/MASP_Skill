@@ -164,7 +164,7 @@ def test_runner_executes_catalog_and_attempts_runtime_smokes(tmp_path, monkeypat
     (root / ".codex/agents").mkdir(parents=True)
     (root / "skills/masp").mkdir(parents=True)
     (root / ".codex/config.toml").write_text(
-        '[agents]\n[agents.masp-coordenador]\nconfig_file="agents/masp-coordenador.toml"\n'
+        '[agents]\nmax_threads=1\n[agents.masp-coordenador]\nconfig_file="agents/masp-coordenador.toml"\n'
         '[agents.masp-identificador]\nconfig_file="agents/masp-identificador.toml"\n', encoding="utf-8"
     )
     (root / ".codex/agents/masp-coordenador.toml").write_text(
@@ -203,6 +203,7 @@ def test_runner_executes_catalog_and_attempts_runtime_smokes(tmp_path, monkeypat
     assert any(name.startswith("delegation masp-identificador") for name in names)
     assert any("models" in call for call in calls)
     assert any("exec" in call for call in calls)
+    assert next(call[-1] for call in calls if "exec" in call).find("never with more than 1 active agents") >= 0
     assert all(check["status"] != "NOT_RUN" for check in report["checks"] if check.get("classification") == "RUNTIME")
     assert next(check for check in report["checks"] if check["name"] == "MASP skill load")["status"] == "BLOCKED"
 

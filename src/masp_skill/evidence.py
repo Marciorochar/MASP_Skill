@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+import re
 from typing import Any
 
 CLASSIFICATIONS = {"STATIC", "SIMULATED", "RUNTIME", "NOT_RUN"}
@@ -79,7 +80,7 @@ def validate_evidence(evidence: list[dict[str, Any]], root: Path) -> list[str]:
         if not isinstance(item.get("description"), str) or not item["description"].strip():
             errors.append(f"{label} is missing description")
         digest = item.get("sha256")
-        if not isinstance(digest, str) or len(digest) != 64:
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
             errors.append(f"{label} is missing a valid sha256 content hash")
         elif is_file:
             try:

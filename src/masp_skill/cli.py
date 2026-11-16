@@ -12,8 +12,8 @@ import tempfile
 import tomllib
 from contextlib import contextmanager
 
-from .case import case_revision, create_case, transition_case, validate_case
-from .routing import load_routing, validate_routing
+from .case import case_revision, create_case, transition_case, validate_case, validate_parallel_tasks
+from .routing import load_agent_configs, load_routing, validate_agent_configs, validate_routing
 
 
 def _read_json(path: Path):
@@ -159,6 +159,34 @@ def _local_smoke_agents(root: Path) -> dict[str, dict]:
     return result
 
 
+def _local_smoke_max_threads(root: Path) -> int:
+    config = tomllib.loads((root / ".codex/config.toml").read_text(encoding="utf-8"))
+    value = config.get("agents", {}).get("max_threads", 1)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise ValueError("agents.max_threads must be a positive integer")
+    return value
+
+
+def _agent_config_root(routing_path: Path, workspace: Path) -> Path:
+    config_root = Path(workspace).resolve()
+    if not (config_root / ".codex/config.toml").is_file():
+        candidate = Path(routing_path).resolve().parents[2]
+        if (candidate / ".codex/config.toml").is_file():
+            config_root = candidate
+    return config_root
+
+
+def _effective_config_errors(routing: dict, routing_path: Path, workspace: Path) -> list[str]:
+    errors = validate_routing(routing)
+    config_root = _agent_config_root(routing_path, workspace)
+    if (config_root / ".codex/config.toml").is_file():
+        try:
+            errors.extend(validate_agent_configs(routing, load_agent_configs(config_root)))
+        except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError) as exc:
+            errors.append(f"agent config could not be loaded: {exc}")
+    return errors
+
+
 def _delegation_events(stdout: str, roles: list[str]) -> dict[str, dict]:
     """Accept only structured call, agent, and completion events with matching IDs."""
     calls: list[dict] = []
@@ -259,6 +287,13 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
         "role_models": {},
         "limitations": [],
     }
+    try:
+        max_agents = _local_smoke_max_threads(root)
+        report["effective_agent_limit"] = max_agents
+    except (OSError, ValueError, tomllib.TOMLDecodeError) as exc:
+        max_agents = 1
+        report["checks"].append({"name": "effective agent limit", "classification": "STATIC",
+                                 "status": "FAIL", "reason": str(exc)})
     if not codex:
         report["limitations"].append("Codex CLI executable was not found on PATH")
         report["checks"].append({"name": "CLI availability", "status": "BLOCKED"})
@@ -331,7 +366,7 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
         prompt = (
             "You are testing this repository's local MASP coordinator and skill in a read-only smoke. "
             "Try to invoke the local skill named masp (do not read it with shell as a substitute for loading it). "
-            "Then, sequentially and never with more than three active agents, use the actual configured local subagent "
+            f"Then, sequentially and never with more than {max_agents} active agents, use the actual configured local subagent "
             "for each listed role to return only the marker ROLE:<name> and its effective model and reasoning effort. "
             "Do not use shell or other tools; do not edit files. If a configured role or subagent tool is unavailable, "
             "report that plainly. Roles: " + ", ".join(roles) + ". When finished, include MASP_SKILL_LOADED only if "
@@ -428,6 +463,8 @@ def main(argv: list[str] | None = None) -> int:
     transition.add_argument("--routing", type=Path, default=Path("docs/masp/masp-routing.toml"))
     transition.add_argument("--expected-revision", required=True, help="SHA-256 returned by case-revision")
     transition.add_argument("--root", type=Path, default=Path.cwd(), help="workspace root for evidence references")
+    transition.add_argument("--parallel-tasks", type=Path,
+                            help="optional JSON task array with writes paths to validate against concurrency policy")
 
     revision = commands.add_parser("case-revision", help="print the current manifest revision for compare-and-swap")
     revision.add_argument("--case", type=Path, required=True)
@@ -455,7 +492,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         routing = load_routing(args.routing)
         if args.command == "validate-routing":
-            errors = validate_routing(routing)
+            errors = _effective_config_errors(routing, args.routing, Path.cwd())
             if errors:
                 print(f"{args.classification}: {len(errors)} erro(s)")
                 for error in errors:
@@ -464,6 +501,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{args.classification}: 8 fases, 10 papéis, zero erros")
             return 0
         if args.command == "new-case":
+            config_errors = _effective_config_errors(routing, args.routing, args.root)
+            if config_errors:
+                raise ValueError("invalid routing/agent configuration: " + "; ".join(config_errors))
             case = create_case(args.id, routing, high_risk=args.high_risk)
             output_path = _within_root(args.output, args.root)
             with _case_lock(output_path):
@@ -473,6 +513,17 @@ def main(argv: list[str] | None = None) -> int:
             print(f"SIMULATED: caso {args.id} criado em {output_path}; actor and model identities are not authenticated")
             return 0
         if args.command == "transition":
+            config_errors = _effective_config_errors(routing, args.routing, args.root)
+            if config_errors:
+                raise ValueError("invalid routing/agent configuration: " + "; ".join(config_errors))
+            tasks = _read_json(args.parallel_tasks) if args.parallel_tasks else []
+            if not isinstance(tasks, list):
+                raise ValueError("parallel tasks JSON must contain an array")
+            config_root = _agent_config_root(args.routing, args.root)
+            effective_limit = _local_smoke_max_threads(config_root)
+            parallel_errors = validate_parallel_tasks(tasks, routing, root=args.root, effective_limit=effective_limit)
+            if parallel_errors:
+                raise ValueError("invalid parallel task assignment: " + "; ".join(parallel_errors))
             case_path = _within_root(args.case, args.root)
             evidence_path = _within_root(args.evidence, args.root)
             with _case_lock(case_path):
