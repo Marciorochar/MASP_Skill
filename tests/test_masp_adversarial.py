@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from masp_skill.case import create_case, validate_case
+from masp_skill.case import create_case, transition_case, validate_case
+from masp_skill.evidence import make_evidence
 from masp_skill.routing import load_routing, validate_routing
 
 
@@ -39,12 +40,16 @@ def test_malformed_case_state_fields_are_reported_without_exception(field, value
     ("new_state", {"state": "PASS"}),
     ("phase", ["Identificação"]),
 ])
-def test_malformed_event_state_fields_are_reported_without_exception(field, value):
-    fixture = ROOT / "tests/fixtures/cases/valid-case.json"
-    case = json.loads(fixture.read_text(encoding="utf-8"))
-    assert case["ledger"], "fixture must contain at least one event"
+def test_malformed_event_state_fields_are_reported_without_exception(field, value, tmp_path):
+    path = tmp_path / "event-proof.txt"
+    path.write_text("observed", encoding="utf-8")
+    proof = make_evidence(path, tmp_path, classification="SIMULATED", description="Start record")
+    case = transition_case(
+        create_case("MASP-EVENT-TYPES", ROUTING), "IN_PROGRESS",
+        "masp-coordenador", [proof], ROUTING, root=tmp_path,
+    )
     case["ledger"][0][field] = value
-    errors = validate_case(case, ROUTING, ROOT)
+    errors = validate_case(case, ROUTING, tmp_path)
     assert errors
 
 
