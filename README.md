@@ -130,7 +130,7 @@ Use o [modelo de coleta](docs/masp/observacao/MODELO-COLETA-EVIDENCIAS.md) para 
 python -m masp_skill.cli validate-observation --record .tmp/observacao.json --root .
 ```
 
-Esse comando **não** realiza coleta, não autentica as fontes e **não concede `PASS`** ao Gate 02. O ledger e os quatro IDs do gate foram preservados. Consulte as [referências metodológicas](docs/masp/observacao/REFERENCIAS-METODOLOGICAS.md).
+Esse comando **não** realiza coleta, não autentica as fontes e **não concede `PASS`** ao Gate 02. O ledger e os quatro IDs do gate foram preservados. Consulte as [documentação da Observação](docs/masp/observacao/).
 
 ## O que significam os resultados?
 
