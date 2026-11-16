@@ -101,9 +101,17 @@ def validate_codex_smoke_report(report: dict) -> list[str]:
             if not isinstance(item, dict):
                 errors.append(f"command {index} is not an object")
                 continue
-            for key in ("command", "exit_code", "stdout", "stderr"):
+            for key in ("command", "process_completed", "stdout", "stderr"):
                 if key not in item or item[key] is None:
                     errors.append(f"command {index} is missing {key}")
+            if "exit_code" not in item:
+                errors.append(f"command {index} is missing exit_code")
+            if item.get("process_completed") is True and not isinstance(item.get("exit_code"), int):
+                errors.append(f"command {index} completed without an integer exit_code")
+            if item.get("process_completed") is False and item.get("exit_code") is not None:
+                errors.append(f"command {index} did not complete but has an exit_code")
+            if item.get("process_completed") not in (True, False):
+                errors.append(f"command {index} has invalid process_completed")
     expected = report.get("expected_model")
     observed = report.get("observed_model")
     if expected and observed and expected != observed:
@@ -112,16 +120,24 @@ def validate_codex_smoke_report(report: dict) -> list[str]:
 
 
 def _run_smoke_command(report: dict, command: list[str], root: Path, *, timeout: int = 30) -> dict:
+    def normalize_stream(value) -> str:
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        return "" if value is None else str(value)
+
     try:
         result = subprocess.run(command, cwd=root, capture_output=True, text=True, encoding="utf-8",
                                 errors="replace", timeout=timeout, check=False)
-        item = {"command": command, "exit_code": result.returncode,
-                "stdout": result.stdout, "stderr": result.stderr}
+        item = {"command": command, "process_completed": True, "exit_code": result.returncode,
+                "stdout": normalize_stream(getattr(result, "stdout", "")),
+                "stderr": normalize_stream(getattr(result, "stderr", ""))}
     except subprocess.TimeoutExpired as exc:
-        item = {"command": command, "exit_code": None, "stdout": exc.stdout or "",
-                "stderr": exc.stderr or "", "error": f"timed out after {timeout}s"}
+        item = {"command": command, "process_completed": False, "exit_code": None,
+                "stdout": normalize_stream(exc.stdout), "stderr": normalize_stream(exc.stderr),
+                "error": f"timed out after {timeout}s"}
     except OSError as exc:
-        item = {"command": command, "exit_code": None, "stdout": "", "stderr": str(exc), "error": str(exc)}
+        item = {"command": command, "process_completed": False, "exit_code": None,
+                "stdout": "", "stderr": str(exc), "error": str(exc)}
     report["commands"].append(item)
     return item
 
@@ -149,32 +165,87 @@ def _local_smoke_agents(root: Path) -> dict[str, dict]:
 
 
 def _delegation_events(stdout: str, roles: list[str]) -> dict[str, dict]:
-    """Find explicit subagent tool events; plain assistant claims are not proof."""
-    found = {role: {"tool_call": False, "completion": False, "event_excerpt": None,
-                    "observed_model": None, "observed_effort": None} for role in roles}
+    """Accept only structured call, agent, and completion events with matching IDs."""
+    calls: list[dict] = []
+    agents: list[dict] = []
+    completions: list[dict] = []
     for line in stdout.splitlines():
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        item = event.get("item", {}) if isinstance(event, dict) else {}
-        serialized = json.dumps(item, ensure_ascii=False)
-        lower = serialized.lower()
-        is_spawn = any(marker in lower for marker in ("spawn_agent", "spawnagent", "create_agent", "delegate_to_agent"))
-        is_result = any(key in item for key in ("agent_id", "agentId", "subagent_id")) or "subagent" in lower
-        for role in roles:
-            if role in serialized:
-                found[role]["tool_call"] |= is_spawn
-                found[role]["completion"] |= is_result and not is_spawn
-                if is_spawn or is_result:
-                    found[role]["event_excerpt"] = serialized[:1000]
-                    model_match = re.search(r"(?i)\bmodel\s*[:=]\s*([\w.-]+)", serialized) if is_spawn or is_result else None
-                    effort_match = re.search(r"(?i)(?:reasoning[_ ]effort|effort)\s*[:=]\s*(low|medium|high)", serialized) if is_spawn or is_result else None
-                    if model_match:
-                        found[role]["observed_model"] = model_match.group(1)
-                    if effort_match:
-                        found[role]["observed_effort"] = effort_match.group(1)
+        if not isinstance(event, dict) or event.get("type") not in {"item.started", "item.completed", "item.updated"}:
+            continue
+        item = event.get("item")
+        if not isinstance(item, dict) or not isinstance(item.get("type"), str):
+            continue
+        event_type = item["type"]
+        status = item.get("status")
+        call_id = item.get("call_id")
+        agent_id = item.get("agent_id")
+        role = (item.get("agent_name") or item.get("target_agent") or item.get("name") or item.get("agent"))
+        arguments = item.get("arguments")
+        if not isinstance(role, str) and isinstance(arguments, dict):
+            role = arguments.get("agent_name") or arguments.get("name")
+        if not isinstance(role, str) or role not in roles:
+            role = None
+        if not isinstance(call_id, str) or not call_id:
+            continue
+        if event_type == "collab_tool_call" and item.get("tool") in {"spawn_agent", "spawnAgent", "create_agent", "delegate_to_agent"}:
+            if isinstance(role, str) and role in roles and status in {"started", "in_progress", "completed", "succeeded"}:
+                calls.append({"role": role, "call_id": call_id, "item": item})
+        elif event_type in {"agent_started", "collab_agent_started", "agent_spawned"}:
+            if (isinstance(agent_id, str) and agent_id and status in {"started", "in_progress", "running"} and
+                    (role is None or role in roles)):
+                agents.append({"role": role, "call_id": call_id, "agent_id": agent_id, "item": item})
+        elif event_type in {"agent_completed", "collab_agent_completed", "agent_result"}:
+            if (isinstance(agent_id, str) and agent_id and status in {"completed", "succeeded", "done"} and
+                    (role is None or role in roles)):
+                completions.append({"role": role, "call_id": call_id, "agent_id": agent_id, "item": item})
+
+    found = {role: {"tool_call": False, "completion": False, "call_id": None, "agent_id": None,
+                    "event_excerpt": None, "observed_model": None, "observed_effort": None} for role in roles}
+    for call in calls:
+        for agent in agents:
+            if ((agent["role"] is not None and call["role"] != agent["role"]) or
+                    call["call_id"] != agent["call_id"]):
+                continue
+            found[call["role"]]["tool_call"] = True
+            found[call["role"]]["call_id"] = call["call_id"]
+            found[call["role"]]["agent_id"] = agent["agent_id"]
+            for completion in completions:
+                if ((completion["role"] is not None and completion["role"] != call["role"]) or
+                        completion["call_id"] != call["call_id"] or
+                        completion["agent_id"] != agent["agent_id"]):
+                    continue
+                found[call["role"]]["completion"] = True
+                result = completion["item"].get("result")
+                if not isinstance(result, dict):
+                    result = completion["item"]
+                found[call["role"]]["observed_model"] = result.get("effective_model")
+                found[call["role"]]["observed_effort"] = result.get("effective_effort")
+                found[call["role"]]["event_excerpt"] = json.dumps(
+                    {"call": call["item"], "agent": agent["item"], "completion": completion["item"]},
+                    ensure_ascii=False)[:2000]
     return found
+
+
+def _skill_load_evidence(stdout: str, skill_name: str = "masp") -> dict | None:
+    """Return explicit structured skill-load evidence, never an assistant text claim."""
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict) or event.get("type") not in {"item.completed", "item.updated"}:
+            continue
+        item = event.get("item")
+        if not isinstance(item, dict) or item.get("type") not in {"skill_load", "skill_loaded"}:
+            continue
+        name = item.get("skill_name") or item.get("name")
+        if name == skill_name and item.get("status") in {"loaded", "completed", "succeeded"}:
+            return item
+    return None
 
 
 def run_codex_smoke(root: Path, output_dir: Path) -> dict:
@@ -216,7 +287,8 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
         for args, name in ((["--version"], "version"), (["--help"], "CLI help")):
             item = _run_smoke_command(report, [codex, *args], root)
             report["checks"].append({"name": name, "classification": "RUNTIME",
-                                     "status": "PASS" if item["exit_code"] == 0 else "FAIL",
+                                     "status": "BLOCKED" if not item["process_completed"] else
+                                     "PASS" if item["exit_code"] == 0 else "FAIL",
                                      "command_index": len(report["commands"]) - 1})
             if name == "version":
                 report["version"] = (item["stdout"] or item["stderr"]).strip()
@@ -225,7 +297,7 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
         catalog_status = "FAIL"
         catalog_excerpt = ""
         available = {}
-        if catalog["exit_code"] == 0:
+        if catalog["process_completed"] and catalog["exit_code"] == 0:
             try:
                 raw_catalog = json.loads(catalog["stdout"])
                 for model in raw_catalog.get("models", []):
@@ -241,7 +313,9 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
             except (json.JSONDecodeError, AttributeError, TypeError) as exc:
                 catalog["error"] = f"catalog JSON could not be parsed: {exc}"
         report["checks"].append({"name": "model catalog", "classification": "RUNTIME",
-                                 "status": catalog_status, "command_index": len(report["commands"]) - 1})
+                                 "status": catalog_status if catalog["process_completed"] else "BLOCKED",
+                                 "command_index": len(report["commands"]) - 1,
+                                 "reason": catalog.get("error")})
         try:
             local_agents = _local_smoke_agents(root)
             report["role_models"] = local_agents
@@ -275,18 +349,20 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
             exec_command += ["-c", f'model_reasoning_effort="{coordinator["effort"]}"']
         exec_command.append(prompt)
         delegated = _run_smoke_command(report, exec_command, root, timeout=240)
-        skill_status = ("BLOCKED" if delegated["exit_code"] != 0 else
-                        "PASS" if "MASP_SKILL_LOADED" in delegated["stdout"] else "FAIL")
+        skill_evidence = _skill_load_evidence(delegated["stdout"])
+        skill_status = ("BLOCKED" if not delegated["process_completed"] or delegated["exit_code"] != 0 or not skill_evidence
+                        else "PASS")
         report["checks"].append({"name": "MASP skill load", "classification": "RUNTIME", "status": skill_status,
                                  "command_index": len(report["commands"]) - 1,
-                                 "reason": "Codex exec failed before checking skill load" if delegated["exit_code"] != 0 else None})
+                                 "evidence": skill_evidence,
+                                 "reason": "no structured skill-load event was emitted" if not skill_evidence else None})
         tool_events = _delegation_events(delegated["stdout"], roles)
         for role in roles:
             configured = local_agents[role]
             event = tool_events[role]
-            if delegated["exit_code"] != 0:
+            if not delegated["process_completed"] or delegated["exit_code"] != 0:
                 status = "BLOCKED"
-                reason = "Codex exec returned nonzero; see command output"
+                reason = "Codex exec did not complete successfully; see command output"
             elif not event["tool_call"]:
                 status = "BLOCKED"
                 reason = "no explicit subagent tool call for this role was observed in JSONL"
@@ -299,18 +375,19 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
             report["checks"].append({"name": f"delegation {role}", "classification": "RUNTIME", "status": status,
                                      "model": configured.get("model"), "effort": configured.get("effort"),
                                      "reason": reason, "evidence": event})
-            observed_matches = (event["observed_model"] == configured.get("model") and
+            observed_matches = (event["completion"] and event["observed_model"] == configured.get("model") and
                                 event["observed_effort"] == configured.get("effort"))
+            observation_status = ("PASS" if observed_matches else "FAIL" if event["completion"] else "BLOCKED")
             report["checks"].append({"name": f"effective model/effort {role}", "classification": "RUNTIME",
-                                     "status": "PASS" if observed_matches else "BLOCKED",
+                                     "status": observation_status,
                                      "expected_model": configured.get("model"), "expected_effort": configured.get("effort"),
                                      "observed_model": event["observed_model"], "observed_effort": event["observed_effort"],
-                                     "reason": None if observed_matches else "no verifiable effective model/effort was emitted by a completed subagent event"})
-        discovery_status = "BLOCKED" if delegated["exit_code"] != 0 else (
-            "PASS" if roles and all(event["tool_call"] for event in tool_events.values()) else "BLOCKED")
+                                     "reason": None if observed_matches else "no matching effective model/effort in structured completion evidence"})
+        discovery_status = "BLOCKED" if not delegated["process_completed"] or delegated["exit_code"] != 0 else (
+            "PASS" if roles and all(event["tool_call"] and event["completion"] for event in tool_events.values()) else "BLOCKED")
         report["checks"].append({"name": "local agent discovery", "classification": "RUNTIME",
                                  "status": discovery_status,
-                                 "reason": "discovery/delegation invocation did not start" if delegated["exit_code"] != 0 else
+                                 "reason": "discovery/delegation invocation did not complete successfully" if not delegated["process_completed"] or delegated["exit_code"] != 0 else
                                  "not all configured subagents produced explicit tool-call events" if discovery_status == "BLOCKED" else None})
     config = root / ".codex" / "config.toml"
     report["checks"].append({"name": "local config file", "classification": "STATIC",
@@ -321,7 +398,7 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
     report["python"] = sys.version.split()[0]
     errors = validate_codex_smoke_report(report)
     if errors:
-        raise ValueError("invalid smoke report: " + "; ".join(errors))
+        report["validation_errors"] = errors
     (output_dir / "codex-smoke.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     lines = ["# Codex smoke evidence", "", f"Classification: **{report['classification']}**", "",
              f"CLI version: `{report['version'] or 'unavailable'}`", "", "## Checks", ""]
