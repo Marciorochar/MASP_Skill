@@ -56,22 +56,24 @@ Task 6 atualiza `README.md` e `docs/masp/PROMPT-CODEX.md`, e cria este relatóri
 
 ## 7. Testes e validação
 
-Resultados devem ser interpretados pelo tipo de teste:
+### Execuções classificadas por evidência
 
 | Verificação | Classificação | Evidência/escopo |
 |---|---|---|
-| `pytest tests/test_documentation.py -q` antes da documentação | `SIMULATED` (teste local) | falhou como esperado; quatro testes documentais detectaram ausência/alinhamento incompleto |
-Os testes Python locais são execução da suíte do repositório, separada das classificações de evidência `STATIC`, `SIMULATED` e `RUNTIME`:
-
-| Comando | Resultado | Escopo |
-|---|---|---|
-| `pytest tests/test_documentation.py -q` | execução documental inicial: 4 falharam; revisão da auditoria: 3 falharam antes das correções e 4 passaram depois | teste documental, incluindo preparo da CLI, inventário e precisão sobre runtime |
-| `pytest -q` | 54 passaram | suíte local; não comprova runtime Codex |
 | `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC` | `STATIC` | executado com `PYTHONPATH=src`: oito fases, dez papéis, zero erros |
 | `python -m masp_skill.cli validate-case --case tests/fixtures/cases/valid-case.json --root .` | `STATIC` | executado com `PYTHONPATH=src`: fixture e ledger válidos |
 | smoke `scripts/run_codex_smoke.ps1` capturado nos artefatos | `RUNTIME` | CLI 0.169.0; verificações parciais PASS e checagens de skill/agentes BLOCKED |
 
-O comando CLI sem pacote instalado no ambiente atual falhou com `ModuleNotFoundError`; os dois comandos foram então executados com `PYTHONPATH=src` e passaram. O README orienta instalar o projeto (modo editável) para chamar a CLI sem essa variável. Não há equivalência entre a suíte local e a sondagem do runtime Codex.
+O comando CLI sem pacote instalado no ambiente atual falhou com `ModuleNotFoundError`; os dois comandos foram então executados com `PYTHONPATH=src` e passaram. O README orienta instalar o projeto (modo editável) para chamar a CLI sem essa variável.
+
+### Testes Python locais
+
+Esta tabela registra a suíte de código. Pytest local não recebe rótulo de classificação de evidência MASP e não comprova runtime Codex.
+
+| Comando | Resultado | Escopo |
+|---|---|---|
+| `pytest tests/test_documentation.py -q` | execução documental inicial: 4 falharam; reauditoria: 3 falharam antes das correções e 4 passaram depois | teste documental de setup, inventário e precisão runtime |
+| `pytest -q` | 54 passaram | suíte local do repositório |
 
 ## 8. Custo, desempenho e limites operacionais
 

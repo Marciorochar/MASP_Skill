@@ -77,6 +77,11 @@ def test_report_classifies_runtime_from_recorded_smoke_and_does_not_claim_discov
     assert "solicit" in report.lower() and "eventos correlacionados" in report.lower()
     assert "chamou oito papéis" not in report.lower()
     assert "LOCAL TEST" not in report
+    formal = report.split("Execuções classificadas por evidência", 1)[1].split("Testes Python locais", 1)[0]
+    python_tests = report.split("Testes Python locais", 1)[1].split("## 8.", 1)[0]
+    assert "pytest" not in formal.lower()
+    assert "pytest" in python_tests.lower()
+    assert "SIMULATED" not in python_tests and "STATIC" not in python_tests and "RUNTIME" not in python_tests
     for text in (report, example):
         assert "STATIC" in text and "SIMULATED" in text and "RUNTIME" in text
         assert "BLOCKED" in text
