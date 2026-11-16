@@ -57,6 +57,10 @@ id = "identificacao"
 name = "Identificação"
 role = "masp-identificador"
 gate = "Problema observável, impacto, escopo, exclusões e métrica de sucesso registrados."
+inputs = ["Relato inicial do problema", "Contexto e restrições conhecidos"]
+outputs = ["Declaração do problema", "Escopo e métrica de sucesso"]
+tools = ["filesystem", "version_control"]
+access_modes = ["read-only"]
 returns = ["Conclusão"]
 [[phases.skills]]
 name = "superpowers:brainstorming"
@@ -67,6 +71,10 @@ id = "observacao"
 name = "Observação"
 role = "masp-observador"
 gate = "Baseline, ambiente, método e resultado reproduzível ou limitação documentada."
+inputs = ["Declaração do problema", "Ambiente disponível"]
+outputs = ["Baseline", "Evidências observadas", "Limitações de coleta"]
+tools = ["filesystem", "version_control", "test_runner"]
+access_modes = ["read-only", "execute-approved"]
 returns = ["Identificação"]
 [[phases.skills]]
 name = "superpowers:systematic-debugging"
@@ -81,6 +89,10 @@ id = "analise"
 name = "Análise"
 role = "masp-analista"
 gate = "Hipóteses avaliadas e causa raiz sustentada ou inconclusão explicitada."
+inputs = ["Baseline", "Evidências observadas"]
+outputs = ["Hipóteses avaliadas", "Causa raiz ou inconclusão justificada"]
+tools = ["filesystem", "version_control"]
+access_modes = ["read-only"]
 returns = ["Observação"]
 [[phases.skills]]
 name = "superpowers:systematic-debugging"
@@ -91,6 +103,10 @@ id = "plano-de-acao"
 name = "Plano de ação"
 role = "masp-planejador"
 gate = "Tarefas, responsáveis, escopo, riscos, rollback, testes e aprovação humana registrados."
+inputs = ["Causa raiz ou inconclusão", "Restrições e critérios de aceitação"]
+outputs = ["Plano delimitado", "Riscos e rollback", "Critérios de teste", "Registro de aprovação humana"]
+tools = ["filesystem", "version_control"]
+access_modes = ["read-only"]
 returns = ["Análise"]
 [[phases.skills]]
 name = "superpowers:writing-plans"
@@ -101,6 +117,10 @@ id = "acao"
 name = "Ação"
 role = "masp-executor"
 gate = "Diff, arquivos delimitados, comandos e resultados registrados; executor não aprova a própria ação."
+inputs = ["Plano aprovado", "Arquivos autorizados", "Critérios de aceitação"]
+outputs = ["Diff delimitado", "Comandos executados", "Resultados e limitações"]
+tools = ["filesystem", "version_control", "test_runner"]
+access_modes = ["read-only", "write-approved", "execute-approved"]
 returns = ["Plano de ação"]
 [[phases.skills]]
 name = "superpowers:using-git-worktrees"
@@ -118,6 +138,10 @@ id = "verificacao"
 name = "Verificação"
 role = "masp-testador"
 gate = "Verificação independente, comparação com baseline, testes e regressões pertinentes."
+inputs = ["Baseline", "Diff e resultados da Ação", "Critérios de aceitação"]
+outputs = ["Resultados de verificação", "Parecer independente", "Regressões observadas"]
+tools = ["filesystem", "version_control", "test_runner"]
+access_modes = ["read-only", "execute-approved"]
 returns = ["Ação", "Análise"]
 [[phases.skills]]
 name = "superpowers:verification-before-completion"
@@ -131,6 +155,10 @@ id = "padronizacao"
 name = "Padronização"
 role = "masp-padronizador"
 gate = "Controle preventivo com proprietário, acionamento e regressão correspondente documentados."
+inputs = ["Parecer de verificação", "Lições validadas"]
+outputs = ["Controle preventivo", "Responsável e gatilho", "Regressão correspondente"]
+tools = ["filesystem", "version_control", "test_runner"]
+access_modes = ["read-only", "write-approved", "execute-approved"]
 returns = ["Verificação"]
 [[phases.skills]]
 name = "superpowers:writing-skills"
@@ -142,6 +170,10 @@ id = "conclusao"
 name = "Conclusão"
 role = "masp-relator"
 gate = "Ledger, resultados, limitações, riscos residuais, pendências e parecer consolidados."
+inputs = ["Histórico do caso", "Evidências e pareceres", "Limitações e riscos residuais"]
+outputs = ["Conclusão consolidada", "Pendências e decisão registrada"]
+tools = ["filesystem", "version_control"]
+access_modes = ["read-only"]
 returns = ["Verificação", "Padronização"]
 [[phases.skills]]
 name = "superpowers:finishing-a-development-branch"
@@ -162,6 +194,14 @@ requires_human_approval_for_substitution = true
 independent = true
 high_risk_requires_astra = true
 astra_trigger_is_automatic_for_first_test_failure = false
+
+[policies.astra_escalation]
+conditions = ["concurrency_or_deadlock", "security", "complex_reverse_engineering", "critical_architecture_decision", "grave_contradictory_evidence", "high_risk_change", "persistent_problem_after_systematic_diagnosis"]
+required_record = ["astra_reason", "related_evidence", "coordinator_decision"]
+high_risk_requires_astra = true
+astra_unavailable_state = "BLOCKED"
+substitution_requires_human_approval = true
+first_test_failure_triggers = false
 
 [policies.delegation]
 coordinator_only = true

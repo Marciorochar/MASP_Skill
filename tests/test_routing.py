@@ -44,6 +44,11 @@ def test_matrix_declares_gates_returns_parallelism_audit_and_model_policy():
     assert data["policies"]["audit"]["independent"] is True
     assert data["policies"]["unavailable_model"]["state"] == "BLOCKED"
     assert data["policies"]["unavailable_model"]["automatic_fallback"] is False
+    assert all(phase["inputs"] and phase["outputs"] for phase in data["phases"])
+    assert all(phase["tools"] and phase["access_modes"] for phase in data["phases"])
+    escalation = data["policies"]["astra_escalation"]
+    assert escalation["conditions"]
+    assert {"astra_reason", "related_evidence", "coordinator_decision"} <= set(escalation["required_record"])
 
 
 def test_rejects_invalid_effort_model_missing_phase_and_unregistered_skill():
@@ -63,6 +68,44 @@ def test_rejects_invalid_effort_model_missing_phase_and_unregistered_skill():
     data = deepcopy(base)
     data["phases"][0]["skills"][0]["path"] = ""
     assert any("skill" in error.lower() for error in validate_routing(data))
+
+
+def test_rejects_non_table_role_and_invalid_phase_role_reference():
+    data = load_routing(MATRIX)
+    data["roles"]["masp-identificador"] = "not a table"
+    errors = validate_routing(data)
+    assert any("masp-identificador" in error and "table" in error.lower() for error in errors)
+
+    data = load_routing(MATRIX)
+    data["phases"][0]["role"] = "unknown-role"
+    errors = validate_routing(data)
+    assert any("role" in error.lower() and "identificacao" in error.lower() for error in errors)
+
+
+def test_rejects_invalid_return_reference_and_return_types():
+    data = load_routing(MATRIX)
+    data["phases"][0]["returns"] = ["unknown-phase"]
+    errors = validate_routing(data)
+    assert any("return" in error.lower() and "identificacao" in error.lower() for error in errors)
+
+    for invalid_returns in ("Observação", [None], [1], []):
+        data = load_routing(MATRIX)
+        data["phases"][0]["returns"] = invalid_returns
+        assert any("return" in error.lower() for error in validate_routing(data))
+
+
+def test_rejects_missing_phase_contract_fields_and_invalid_types():
+    for field, invalid_value in (("inputs", []), ("outputs", "artifact"),
+                                 ("tools", ["test_runner", 2]), ("tools", ["imaginary_tool"]),
+                                 ("access_modes", ["unknown"])):
+        data = load_routing(MATRIX)
+        data["phases"][0][field] = invalid_value
+        assert any(field.replace("_", " ").split()[0] in error.lower()
+                   for error in validate_routing(data))
+
+    data = load_routing(MATRIX)
+    data["policies"]["astra_escalation"]["conditions"] = []
+    assert any("astra" in error.lower() for error in validate_routing(data))
 
 
 def test_loader_reads_toml_without_mutating_file(tmp_path):

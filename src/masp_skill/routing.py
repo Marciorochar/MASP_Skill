@@ -23,6 +23,13 @@ ROLE_MODELS = {
 }
 VALID_MODELS = {model for model, _ in ROLE_MODELS.values()}
 VALID_EFFORTS = {"low", "medium", "high"}
+VALID_ACCESS_MODES = {"read-only", "write-approved", "execute-approved", "delegate"}
+VALID_TOOLS = {"filesystem", "version_control", "test_runner"}
+ASTRA_CONDITIONS = {
+    "concurrency_or_deadlock", "security", "complex_reverse_engineering",
+    "critical_architecture_decision", "grave_contradictory_evidence",
+    "high_risk_change", "persistent_problem_after_systematic_diagnosis",
+}
 
 
 def load_agent_configs(root: Path) -> dict[str, dict[str, Any]]:
@@ -108,17 +115,42 @@ def validate_routing(data: dict[str, Any]) -> list[str]:
             errors.append(f"phase {index + 1} must be a table")
             continue
         for key in ("id", "name", "role", "gate"):
-            if not phase.get(key):
+            if not isinstance(phase.get(key), str) or not phase[key].strip():
                 errors.append(f"phase {index + 1} is missing {key}")
-        if not isinstance(phase.get("returns"), list) or not phase.get("returns"):
-            errors.append(f"phase {index + 1} must declare permitted returns")
+        phase_id = phase.get("id") if isinstance(phase.get("id"), str) else str(index + 1)
+        role_ref = phase.get("role")
+        if isinstance(role_ref, str) and role_ref not in ROLE_MODELS:
+            errors.append(f"phase {phase_id} references unknown role {role_ref!r}")
+        returns = phase.get("returns")
+        if not isinstance(returns, list) or not returns:
+            errors.append(f"phase {phase_id} must declare permitted returns as a non-empty list")
+        elif any(not isinstance(target, str) or target not in PHASES for target in returns):
+            errors.append(f"phase {phase_id} has invalid return phase reference(s)")
+        for field in ("inputs", "outputs"):
+            value = phase.get(field)
+            if not isinstance(value, list) or not value or any(
+                not isinstance(item, str) or not item.strip() for item in value
+            ):
+                errors.append(f"phase {phase_id} {field} must be a non-empty list of strings")
+        tools = phase.get("tools")
+        if not isinstance(tools, list) or not tools or any(
+            not isinstance(tool, str) or tool not in VALID_TOOLS for tool in tools
+        ):
+            errors.append(f"phase {phase_id} tools contains an invalid or missing tool")
+        access_modes = phase.get("access_modes")
+        if not isinstance(access_modes, list) or not access_modes or any(
+            not isinstance(mode, str) or mode not in VALID_ACCESS_MODES for mode in access_modes
+        ):
+            errors.append(f"phase {phase_id} access_modes contains an invalid or missing mode")
         skills = phase.get("skills")
         if not isinstance(skills, list) or not skills:
             errors.append(f"phase {index + 1} must declare registered skills")
         else:
             for skill in skills:
-                if not isinstance(skill, dict) or not skill.get("name") or not skill.get("path"):
-                    errors.append(f"phase {index + 1} has a skill without a registered name and path")
+                if (not isinstance(skill, dict) or not isinstance(skill.get("name"), str)
+                        or not skill["name"].strip() or not isinstance(skill.get("path"), str)
+                        or not skill["path"].strip()):
+                    errors.append(f"phase {phase_id} has a skill without a registered name and path")
 
     roles = data.get("roles")
     if not isinstance(roles, dict):
@@ -131,13 +163,15 @@ def validate_routing(data: dict[str, Any]) -> list[str]:
     for name, expected in ROLE_MODELS.items():
         role = roles.get(name)
         if not isinstance(role, dict):
+            if name in roles:
+                errors.append(f"role {name} must be a table")
             continue
         model, effort = role.get("model"), role.get("effort")
-        if model not in VALID_MODELS or model != expected[0]:
+        if not isinstance(model, str) or model not in VALID_MODELS or model != expected[0]:
             errors.append(f"role {name} has invalid model {model!r}; expected {expected[0]}")
-        if effort not in VALID_EFFORTS or effort != expected[1]:
+        if not isinstance(effort, str) or effort not in VALID_EFFORTS or effort != expected[1]:
             errors.append(f"role {name} has invalid effort {effort!r}; expected {expected[1]}")
-        if not role.get("responsibility"):
+        if not isinstance(role.get("responsibility"), str) or not role["responsibility"].strip():
             errors.append(f"role {name} is missing responsibility")
 
     policies = data.get("policies")
@@ -154,6 +188,27 @@ def validate_routing(data: dict[str, Any]) -> list[str]:
     audit = policies.get("audit", {})
     if not isinstance(audit, dict) or audit.get("independent") is not True:
         errors.append("audit policy must require independent review")
+    astra = policies.get("astra_escalation")
+    if not isinstance(astra, dict):
+        errors.append("astra escalation policy must be a table")
+    else:
+        conditions = astra.get("conditions")
+        if (not isinstance(conditions, list) or any(not isinstance(item, str) for item in conditions)
+                or set(conditions) != ASTRA_CONDITIONS):
+            errors.append("astra escalation policy must declare all supported conditions")
+        required_record = astra.get("required_record")
+        if (not isinstance(required_record, list)
+                or any(not isinstance(item, str) for item in required_record)
+                or not {"astra_reason", "related_evidence", "coordinator_decision"} <= set(required_record)):
+            errors.append("astra escalation policy must require reason, evidence, and coordinator decision")
+        if astra.get("high_risk_requires_astra") is not True:
+            errors.append("astra escalation must be required for high-risk cases")
+        if astra.get("astra_unavailable_state") != "BLOCKED":
+            errors.append("astra unavailability must block the case")
+        if astra.get("substitution_requires_human_approval") is not True:
+            errors.append("astra substitution must require human approval")
+        if astra.get("first_test_failure_triggers") is not False:
+            errors.append("first test failure must not trigger astra automatically")
     states = policies.get("states", {})
     if not isinstance(states, dict) or not isinstance(states.get("values"), list) or set(states["values"]) != {
         "PENDING", "IN_PROGRESS", "PASS", "FAIL", "BLOCKED", "NOT_RUN"
