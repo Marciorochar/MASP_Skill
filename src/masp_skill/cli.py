@@ -14,6 +14,7 @@ from contextlib import contextmanager
 
 from .case import case_revision, create_case, transition_case, validate_case, validate_parallel_tasks
 from .routing import load_agent_configs, load_routing, validate_agent_configs, validate_routing
+from .observation import validate_observation_record
 
 
 def _read_json(path: Path):
@@ -550,6 +551,10 @@ def main(argv: list[str] | None = None) -> int:
     validate_case_parser.add_argument("--routing", type=Path, default=Path("docs/masp/masp-routing.toml"))
     validate_case_parser.add_argument("--root", type=Path, default=Path.cwd())
 
+    observation = commands.add_parser("validate-observation", help="check a universal observation JSON sidecar (STATIC only)")
+    observation.add_argument("--record", type=Path, required=True)
+    observation.add_argument("--root", type=Path, default=Path.cwd())
+
     smoke = commands.add_parser("runtime-smoke", help="collect low-impact Codex CLI smoke evidence")
     smoke.add_argument("--root", type=Path, default=Path.cwd())
     smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
@@ -558,6 +563,16 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        if args.command == "validate-observation":
+            record_path = _within_root(args.record, args.root)
+            issues = validate_observation_record(_read_json(record_path))
+            if issues:
+                print(f"STATIC: {len(issues)} problema(s) estruturais no registro de Observação")
+                for issue in issues:
+                    print(f"- {issue}")
+                return 1
+            print("STATIC: estrutura de Observação válida; gate MASP e evidências reais não autenticados")
+            return 0
         if args.command == "runtime-smoke":
             report = (run_codex_smoke(args.root, args.output_dir, all_roles=True) if args.all_roles
                       else run_codex_smoke(args.root, args.output_dir))

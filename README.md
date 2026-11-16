@@ -1,6 +1,6 @@
 # MASP_Skill — investigação e solução de problemas com evidências
 
-**Um fluxo estruturado de melhoria e resolução de problemas técnicos, preparado para uso com o Codex.**
+**Um método universal de investigação e solução de problemas, com etapas MASP, evidências e apoio do Codex.**
 
 O **MASP_Skill** ajuda a transformar um problema mal definido — como uma falha de compilação, um teste que começou a falhar ou um defeito recorrente — em um processo rastreável: **descrever o problema → coletar evidências → analisar causas → planejar uma correção → executar com aprovação → verificar → prevenir recorrência → concluir**.
 
@@ -14,14 +14,14 @@ O MASP_Skill é útil quando não basta “pedir para a IA corrigir um erro” e
 
 | Necessidade | Como o repositório ajuda |
 | --- | --- |
-| Investigar um erro sem tirar conclusões precipitadas | Orienta a coleta de baseline, logs, hipóteses e evidências |
+| Investigar um problema sem tirar conclusões precipitadas | Orienta coleta de dados, relatos, registros, medições e evidências adequadas ao domínio |
 | Planejar uma correção com controle | Exige escopo, responsáveis, riscos, rollback, testes e registro de aprovação antes da ação |
 | Evitar que uma correção aparente seja considerada sucesso | Define gates e estados que distinguem `PASS`, `FAIL`, `BLOCKED` e `NOT_RUN` |
 | Organizar trabalho especializado | Declara um coordenador, oito papéis ligados às fases e um especialista crítico |
 | Documentar o histórico de um problema | Registra transições e referências a evidências em um *ledger* JSON com hashes SHA-256 |
 | Repetir um processo de análise | Oferece matriz TOML, modelo de caso, CLI e testes de regressão |
 
-**Público:** pessoas desenvolvedoras, equipes de qualidade, manutenção de software e responsáveis por investigações técnicas. O método pode ser adaptado a outros projetos; os caminhos e as configurações do Codex devem ser revistos em cada ambiente.
+**Público:** equipes de indústria, qualidade, logística, saúde, educação, meio ambiente, administração, serviços e tecnologia, além de pessoas que precisam investigar problemas cotidianos. O método pode ser adaptado a outros projetos; os caminhos e as configurações do Codex devem ser revistos em cada ambiente.
 
 ### Exemplo prático: uma compilação falha
 
@@ -45,7 +45,7 @@ O processo segue **oito fases em sequência**. Cada fase possui entradas, entreg
 | Fase MASP | Entrega principal |
 | --- | --- |
 | 1. Identificação | Problema, impacto, escopo e métrica de sucesso |
-| 2. Observação | Baseline, ambiente e coleta reproduzível |
+| 2. Observação | Situação atual, fontes, baseline quantitativo/qualitativo e limitações de coleta |
 | 3. Análise | Hipóteses avaliadas e causa sustentada ou inconclusão |
 | 4. Plano de ação | Tarefas, riscos, rollback, testes e registro de aprovação humana |
 | 5. Ação | Mudanças aprovadas, diff e comandos/resultados |
@@ -119,6 +119,18 @@ python -m masp_skill.cli runtime-smoke --root . --output-dir .tmp/masp-runtime -
 **Atenção:** esse comando pode invocar o Codex e consumir tokens. Execute somente em um ambiente autorizado. Por padrão, tenta no máximo **um subagente não crítico**; os demais permanecem `NOT_RUN`, incluindo o especialista Astra. O `--strict` retorna código diferente de zero quando há verificações `FAIL` ou `BLOCKED`. **Não use `--all-roles` no teste inicial.** Consulte o [procedimento de validação runtime](docs/masp/VALIDACAO-RUNTIME-PR4.md) antes de executar.
 
 Os caminhos de skills externas na matriz incluem referências locais da instalação original; adapte-os às dependências realmente disponíveis em seu computador, sem presumir que os plugins estão instalados.
+
+## Observação universal v2 — coleta de evidências
+
+O [Módulo 02](docs/masp/observacao/ESPECIFICACAO-V2.md) aceita problemas de qualquer natureza, com fontes atribuídas, métodos adaptativos e baseline **quantitativo, qualitativo ou indisponível com justificativa**. Um evento histórico não precisa ser reproduzido quando isso não for possível ou seguro. A Observação descreve a condição real; causas e soluções pertencem às fases posteriores.
+
+Use o [modelo de coleta](docs/masp/observacao/MODELO-COLETA-EVIDENCIAS.md) para documentar fontes e limitações. Se produzir o registro JSON complementar, verifique sua estrutura com:
+
+```powershell
+python -m masp_skill.cli validate-observation --record .tmp/observacao.json --root .
+```
+
+Esse comando **não** realiza coleta, não autentica as fontes e **não concede `PASS`** ao Gate 02. O ledger e os quatro IDs do gate foram preservados. Consulte as [documentação da Observação](docs/masp/observacao/).
 
 ## O que significam os resultados?
 
