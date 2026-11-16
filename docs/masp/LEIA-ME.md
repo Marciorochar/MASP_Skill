@@ -5,7 +5,7 @@ Este repositório contém os contratos documentais, a skill local MASP e uma CLI
 ## Organização
 
 - `MASP-ARQUITETURA.md`: fluxo, estados e critérios de passagem.
-- `../../.agents/.agents/skills/masp/SKILL.md`: skill local com fluxo MASP, limites de evidência e uso da CLI.
+- `../../.agents/skills/masp/SKILL.md`: skill local com fluxo MASP, limites de evidência e uso da CLI.
 - `../../skills/masp/references/routing-guide.md`: fases, gates, evidências e comandos oficiais.
 - `masp-routing.toml`: matriz declarativa consumida pela CLI.
 - `AGENTS-MASP-ADENDO.md`: regras para incorporar ao AGENTS.md existente, sem substituí-lo.
