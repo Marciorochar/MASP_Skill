@@ -46,7 +46,7 @@ O processo segue **oito fases em sequência**. Cada fase possui entradas, entreg
 | --- | --- |
 | 1. Identificação | Problema, impacto, escopo e métrica de sucesso |
 | 2. Observação | Situação atual, fontes, baseline quantitativo/qualitativo e limitações de coleta |
-| 3. Análise | Hipóteses avaliadas e causa sustentada ou inconclusão |
+| 3. Análise | Hipóteses concorrentes, evidências favoráveis/contrárias e causa sustentada ou inconclusão |
 | 4. Plano de ação | Tarefas, riscos, rollback, testes e registro de aprovação humana |
 | 5. Ação | Mudanças aprovadas, diff e comandos/resultados |
 | 6. Verificação | Comparação com baseline, testes e revisão independente |
@@ -131,6 +131,18 @@ python -m masp_skill.cli validate-observation --record .tmp/observacao.json --ro
 ```
 
 Esse comando **não** realiza coleta, não autentica as fontes e **não concede `PASS`** ao Gate 02. O ledger e os quatro IDs do gate foram preservados. Consulte as [documentação da Observação](docs/masp/observacao/).
+
+## Análise Universal v2 — hipóteses e evidências
+
+O [Módulo 03](docs/masp/analise/ESPECIFICACAO-V2.md) compara hipóteses causais concorrentes, registra evidências favoráveis e contrárias, busca alternativas e diferencia **correlação de causalidade**. O resultado pode ser uma causa delimitada e sustentada pelas evidências avaliadas ou uma inconclusão legitimamente fundamentada. Métodos como 5 Porquês, Ishikawa, FTA, análise documental e estatística são escolhidos quando pertinentes, sem exigir experimentos perigosos ou aplicações industriais a todo problema.
+
+A [matriz de hipóteses](docs/masp/analise/MATRIZ-HIPOTESES-EVIDENCIAS.md) ajuda a documentar o raciocínio. Um JSON opcional pode ser validado por:
+
+```powershell
+python -m masp_skill.cli validate-analysis --record .tmp/analise.json --root .
+```
+
+**Atenção:** o resultado `STATIC` verifica apenas declarações e vínculos estruturais; não confirma que o agente analisou os fatos, que fontes são realmente independentes ou que uma causa raiz foi demonstrada. Mais detalhes e referências: [documentação de Análise](docs/masp/analise/).
 
 ## O que significam os resultados?
 

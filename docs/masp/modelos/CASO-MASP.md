@@ -84,6 +84,20 @@ Esta ficha complementa a Identificação v2 sem alterar o manifesto nem o ledger
 
 O registro opcional em JSON pode ser validado por `python -m masp_skill.cli validate-observation --record .tmp/observacao.json --root .`. Este comando **não comprova observação de campo nem aprova o gate**.
 
+### Ficha de Análise universal v2
+
+Este registro humano complementa o manifesto existente, sem alterar `schema_version` ou ledger. Siga [a especificação](../analise/ESPECIFICACAO-V2.md) e [a matriz de evidências](../analise/MATRIZ-HIPOTESES-EVIDENCIAS.md).
+
+- Referências ao problema/Identificação v2, à Observação v2, ao baseline e às fontes:
+- Modo rápido/aprofundado, objetivos, escopo e técnicas escolhidas com justificativa:
+- `hypotheses`: hipóteses concorrentes, mecanismo, observação esperada e potencialmente refutadora:
+- `evidence_for_and_against`: IDs, origem, classe, evidências favoráveis e contrárias, buscas sem achados e vieses:
+- Método realmente executado, resultado e limites, ou `NOT_RUN` justificado:
+- Conclusões: `root_cause_or_explicit_inconclusive` — causa(s) sustentada(s) no escopo ou `INCONCLUSIVA`, com alternativas ainda abertas:
+- Fatores contribuintes, confusão, incertezas, dados adicionais e retorno à Observação:
+- Gate 03 recomendado `PASS`/`FAIL`/`BLOCKED`, razão e evidência para cada critério:
+- Comando opcional: `python -m masp_skill.cli validate-analysis --record .tmp/analise.json --root .`. Esta saída STATIC não aprova o gate nem autentica causas.
+
 ### Ledger resumido dos gates
 
 | Fase | Estado | Evidência/IDs | Revisão independente | Próxima decisão |
