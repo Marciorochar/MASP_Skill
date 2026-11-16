@@ -8,20 +8,30 @@ CLI version: `codex-cli 0.169.0`
 
 - version (RUNTIME): **PASS**
 - CLI help (RUNTIME): **PASS**
+- model catalog (RUNTIME): **PASS**
+- local agent config parse (STATIC): **PASS**
+- role model/effort catalog compatibility (RUNTIME): **PASS**
+- MASP skill load (RUNTIME): **FAIL**
+- delegation masp-identificador (RUNTIME): **BLOCKED** — no explicit subagent tool call for this role was observed in JSONL
+- effective model/effort masp-identificador (RUNTIME): **BLOCKED** — no verifiable effective model/effort was emitted by a completed subagent event
+- delegation masp-observador (RUNTIME): **BLOCKED** — no explicit subagent tool call for this role was observed in JSONL
+- effective model/effort masp-observador (RUNTIME): **BLOCKED** — no verifiable effective model/effort was emitted by a completed subagent event
+- delegation masp-analista (RUNTIME): **BLOCKED** — no explicit subagent tool call for this role was observed in JSONL
+- effective model/effort masp-analista (RUNTIME): **BLOCKED** — no verifiable effective model/effort was emitted by a completed subagent event
+- delegation masp-planejador (RUNTIME): **BLOCKED** — no explicit subagent tool call for this role was observed in JSONL
+- effective model/effort masp-planejador (RUNTIME): **BLOCKED** — no verifiable effective model/effort was emitted by a completed subagent event
+- delegation masp-executor (RUNTIME): **BLOCKED** — no explicit subagent tool call for this role was observed in JSONL
+- effective model/effort masp-executor (RUNTIME): **BLOCKED** — no verifiable effective model/effort was emitted by a completed subagent event
+- delegation masp-testador (RUNTIME): **BLOCKED** — no explicit subagent tool call for this role was observed in JSONL
+- effective model/effort masp-testador (RUNTIME): **BLOCKED** — no verifiable effective model/effort was emitted by a completed subagent event
+- delegation masp-padronizador (RUNTIME): **BLOCKED** — no explicit subagent tool call for this role was observed in JSONL
+- effective model/effort masp-padronizador (RUNTIME): **BLOCKED** — no verifiable effective model/effort was emitted by a completed subagent event
+- delegation masp-relator (RUNTIME): **BLOCKED** — no explicit subagent tool call for this role was observed in JSONL
+- effective model/effort masp-relator (RUNTIME): **BLOCKED** — no verifiable effective model/effort was emitted by a completed subagent event
+- local agent discovery (RUNTIME): **BLOCKED** — not all configured subagents produced explicit tool-call events
 - local config file (STATIC): **PASS**
 - local skill file (STATIC): **PASS**
-- delegation masp-identificador (RUNTIME): **NOT_RUN** — would invoke a model; not included in the low-impact smoke
-- delegation masp-observador (RUNTIME): **NOT_RUN** — would invoke a model; not included in the low-impact smoke
-- delegation masp-analista (RUNTIME): **NOT_RUN** — would invoke a model; not included in the low-impact smoke
-- delegation masp-planejador (RUNTIME): **NOT_RUN** — would invoke a model; not included in the low-impact smoke
-- delegation masp-executor (RUNTIME): **NOT_RUN** — would invoke a model; not included in the low-impact smoke
-- delegation masp-testador (RUNTIME): **NOT_RUN** — would invoke a model; not included in the low-impact smoke
-- delegation masp-padronizador (RUNTIME): **NOT_RUN** — would invoke a model; not included in the low-impact smoke
-- delegation masp-relator (RUNTIME): **NOT_RUN** — would invoke a model; not included in the low-impact smoke
-- local agent discovery (RUNTIME): **NOT_RUN** — no non-interactive read-only discovery command was confirmed
-- active model and effort (RUNTIME): **NOT_RUN** — requires an agent invocation to observe
 
 ## Limitations
 
-- Local config/skill file checks are STATIC and do not prove Codex discovery
-- Eight-role delegation, local agent discovery, and active model/effort were not invoked; no safe read-only path was confirmed
+- Runtime delegation status requires explicit tool-call and completion events; an assistant claim alone is not accepted

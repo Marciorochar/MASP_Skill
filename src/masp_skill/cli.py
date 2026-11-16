@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from contextlib import contextmanager
 
 from .case import case_revision, create_case, transition_case, validate_case
@@ -110,8 +111,74 @@ def validate_codex_smoke_report(report: dict) -> list[str]:
     return errors
 
 
+def _run_smoke_command(report: dict, command: list[str], root: Path, *, timeout: int = 30) -> dict:
+    try:
+        result = subprocess.run(command, cwd=root, capture_output=True, text=True, encoding="utf-8",
+                                errors="replace", timeout=timeout, check=False)
+        item = {"command": command, "exit_code": result.returncode,
+                "stdout": result.stdout, "stderr": result.stderr}
+    except subprocess.TimeoutExpired as exc:
+        item = {"command": command, "exit_code": None, "stdout": exc.stdout or "",
+                "stderr": exc.stderr or "", "error": f"timed out after {timeout}s"}
+    except OSError as exc:
+        item = {"command": command, "exit_code": None, "stdout": "", "stderr": str(exc), "error": str(exc)}
+    report["commands"].append(item)
+    return item
+
+
+def _local_smoke_agents(root: Path) -> dict[str, dict]:
+    config = tomllib.loads((root / ".codex/config.toml").read_text(encoding="utf-8"))
+    result = {}
+    for name, entry in config.get("agents", {}).items():
+        if name in ("max_threads", "masp-coordenador", "masp-especialista-critico") or not isinstance(entry, dict):
+            continue
+        path = (root / ".codex" / entry["config_file"]).resolve()
+        path.relative_to((root / ".codex").resolve())
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        result[name] = {"model": data.get("model"), "effort": data.get("model_reasoning_effort"),
+                        "config_file": entry["config_file"]}
+    coordinator_entry = config.get("agents", {}).get("masp-coordenador")
+    if isinstance(coordinator_entry, dict):
+        coordinator_path = (root / ".codex" / coordinator_entry["config_file"]).resolve()
+        coordinator_path.relative_to((root / ".codex").resolve())
+        coordinator = tomllib.loads(coordinator_path.read_text(encoding="utf-8"))
+        result["masp-coordenador"] = {"model": coordinator.get("model"),
+                                      "effort": coordinator.get("model_reasoning_effort"),
+                                      "config_file": coordinator_entry["config_file"]}
+    return result
+
+
+def _delegation_events(stdout: str, roles: list[str]) -> dict[str, dict]:
+    """Find explicit subagent tool events; plain assistant claims are not proof."""
+    found = {role: {"tool_call": False, "completion": False, "event_excerpt": None,
+                    "observed_model": None, "observed_effort": None} for role in roles}
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        item = event.get("item", {}) if isinstance(event, dict) else {}
+        serialized = json.dumps(item, ensure_ascii=False)
+        lower = serialized.lower()
+        is_spawn = any(marker in lower for marker in ("spawn_agent", "spawnagent", "create_agent", "delegate_to_agent"))
+        is_result = any(key in item for key in ("agent_id", "agentId", "subagent_id")) or "subagent" in lower
+        for role in roles:
+            if role in serialized:
+                found[role]["tool_call"] |= is_spawn
+                found[role]["completion"] |= is_result and not is_spawn
+                if is_spawn or is_result:
+                    found[role]["event_excerpt"] = serialized[:1000]
+                    model_match = re.search(r"(?i)\bmodel\s*[:=]\s*([\w.-]+)", serialized) if is_spawn or is_result else None
+                    effort_match = re.search(r"(?i)(?:reasoning[_ ]effort|effort)\s*[:=]\s*(low|medium|high)", serialized) if is_spawn or is_result else None
+                    if model_match:
+                        found[role]["observed_model"] = model_match.group(1)
+                    if effort_match:
+                        found[role]["observed_effort"] = effort_match.group(1)
+    return found
+
+
 def run_codex_smoke(root: Path, output_dir: Path) -> dict:
-    """Collect low-impact CLI evidence; never invokes agents or changes external state."""
+    """Run read-only CLI probes and an ephemeral, read-only role delegation attempt."""
     root = Path(root).resolve()
     output_dir = _within_root(Path(output_dir), root)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -123,42 +190,134 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
         "checks": [],
         "expected_model": None,
         "observed_model": None,
+        "role_models": {},
         "limitations": [],
     }
     if not codex:
         report["limitations"].append("Codex CLI executable was not found on PATH")
         report["checks"].append({"name": "CLI availability", "status": "BLOCKED"})
+        try:
+            local_agents = _local_smoke_agents(root)
+        except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError):
+            local_agents = {}
+        report["role_models"] = local_agents
+        for name in ("model catalog", "MASP skill load", "local agent discovery", "role model/effort catalog compatibility"):
+            report["checks"].append({"name": name, "classification": "RUNTIME", "status": "BLOCKED",
+                                     "reason": "Codex CLI executable was not found on PATH"})
+        for role, configured in local_agents.items():
+            if role == "masp-coordenador":
+                continue
+            for prefix in ("delegation", "effective model/effort"):
+                report["checks"].append({"name": f"{prefix} {role}", "classification": "RUNTIME",
+                                         "status": "BLOCKED", "model": configured.get("model"),
+                                         "effort": configured.get("effort"),
+                                         "reason": "Codex CLI executable was not found on PATH"})
     else:
         for args, name in ((["--version"], "version"), (["--help"], "CLI help")):
-            command = [codex, *args]
+            item = _run_smoke_command(report, [codex, *args], root)
+            report["checks"].append({"name": name, "classification": "RUNTIME",
+                                     "status": "PASS" if item["exit_code"] == 0 else "FAIL",
+                                     "command_index": len(report["commands"]) - 1})
+            if name == "version":
+                report["version"] = (item["stdout"] or item["stderr"]).strip()
+        catalog = _run_smoke_command(report, [codex, "debug", "models", "--bundled"], root, timeout=60)
+        report["classification"] = "RUNTIME"
+        catalog_status = "FAIL"
+        catalog_excerpt = ""
+        available = {}
+        if catalog["exit_code"] == 0:
             try:
-                result = subprocess.run(command, cwd=root, capture_output=True, text=True, timeout=30, check=False)
-                item = {"command": command, "exit_code": result.returncode,
-                        "stdout": result.stdout, "stderr": result.stderr}
-                report["commands"].append(item)
-                report["checks"].append({"name": name, "status": "PASS" if result.returncode == 0 else "FAIL"})
-                if name == "version":
-                    report["version"] = (result.stdout or result.stderr).strip()
-            except (OSError, subprocess.TimeoutExpired) as exc:
-                report["checks"].append({"name": name, "status": "BLOCKED", "detail": str(exc)})
-        report["classification"] = "RUNTIME" if report["commands"] else "NOT_RUN"
+                raw_catalog = json.loads(catalog["stdout"])
+                for model in raw_catalog.get("models", []):
+                    slug = model.get("slug")
+                    if slug:
+                        available[slug] = sorted({level.get("effort") for level in model.get("supported_reasoning_levels", [])
+                                                  if level.get("effort")})
+                catalog_excerpt = json.dumps({"models": [{"slug": name, "supported_efforts": efforts}
+                                                           for name, efforts in sorted(available.items())]}, ensure_ascii=False)
+                catalog["stdout"] = catalog_excerpt
+                catalog["stdout_capture"] = "filtered model/effort metadata; omitted embedded prompt instructions"
+                catalog_status = "PASS"
+            except (json.JSONDecodeError, AttributeError, TypeError) as exc:
+                catalog["error"] = f"catalog JSON could not be parsed: {exc}"
+        report["checks"].append({"name": "model catalog", "classification": "RUNTIME",
+                                 "status": catalog_status, "command_index": len(report["commands"]) - 1})
+        try:
+            local_agents = _local_smoke_agents(root)
+            report["role_models"] = local_agents
+            report["checks"].append({"name": "local agent config parse", "classification": "STATIC", "status": "PASS"})
+        except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError) as exc:
+            local_agents = {}
+            report["checks"].append({"name": "local agent config parse", "classification": "STATIC",
+                                     "status": "FAIL", "reason": str(exc)})
+        phases = {name: {"model": info.get("model"), "effort": info.get("effort"),
+                         "catalog_status": "PASS" if info.get("model") in available and
+                         info.get("effort") in available.get(info.get("model"), []) else "FAIL"}
+                  for name, info in local_agents.items()}
+        report["checks"].append({"name": "role model/effort catalog compatibility", "classification": "RUNTIME",
+                                 "status": "PASS" if phases and all(x["catalog_status"] == "PASS" for x in phases.values()) else "FAIL",
+                                 "roles": phases})
+        roles = [name for name in local_agents if name != "masp-coordenador"]
+        coordinator = local_agents.get("masp-coordenador", {})
+        prompt = (
+            "You are testing this repository's local MASP coordinator and skill in a read-only smoke. "
+            "Try to invoke the local skill named masp (do not read it with shell as a substitute for loading it). "
+            "Then, sequentially and never with more than three active agents, use the actual configured local subagent "
+            "for each listed role to return only the marker ROLE:<name> and its effective model and reasoning effort. "
+            "Do not use shell or other tools; do not edit files. If a configured role or subagent tool is unavailable, "
+            "report that plainly. Roles: " + ", ".join(roles) + ". When finished, include MASP_SKILL_LOADED only if "
+            "the MASP skill was actually loaded."
+        )
+        exec_command = [codex, "exec", "--ephemeral", "--sandbox", "read-only", "--json", "-C", str(root)]
+        if coordinator.get("model"):
+            exec_command += ["--model", coordinator["model"]]
+        if coordinator.get("effort"):
+            exec_command += ["-c", f'model_reasoning_effort="{coordinator["effort"]}"']
+        exec_command.append(prompt)
+        delegated = _run_smoke_command(report, exec_command, root, timeout=240)
+        skill_status = ("BLOCKED" if delegated["exit_code"] != 0 else
+                        "PASS" if "MASP_SKILL_LOADED" in delegated["stdout"] else "FAIL")
+        report["checks"].append({"name": "MASP skill load", "classification": "RUNTIME", "status": skill_status,
+                                 "command_index": len(report["commands"]) - 1,
+                                 "reason": "Codex exec failed before checking skill load" if delegated["exit_code"] != 0 else None})
+        tool_events = _delegation_events(delegated["stdout"], roles)
+        for role in roles:
+            configured = local_agents[role]
+            event = tool_events[role]
+            if delegated["exit_code"] != 0:
+                status = "BLOCKED"
+                reason = "Codex exec returned nonzero; see command output"
+            elif not event["tool_call"]:
+                status = "BLOCKED"
+                reason = "no explicit subagent tool call for this role was observed in JSONL"
+            elif not event["completion"]:
+                status = "FAIL"
+                reason = "subagent invocation event observed but no verifiable completion event"
+            else:
+                status = "PASS"
+                reason = None
+            report["checks"].append({"name": f"delegation {role}", "classification": "RUNTIME", "status": status,
+                                     "model": configured.get("model"), "effort": configured.get("effort"),
+                                     "reason": reason, "evidence": event})
+            observed_matches = (event["observed_model"] == configured.get("model") and
+                                event["observed_effort"] == configured.get("effort"))
+            report["checks"].append({"name": f"effective model/effort {role}", "classification": "RUNTIME",
+                                     "status": "PASS" if observed_matches else "BLOCKED",
+                                     "expected_model": configured.get("model"), "expected_effort": configured.get("effort"),
+                                     "observed_model": event["observed_model"], "observed_effort": event["observed_effort"],
+                                     "reason": None if observed_matches else "no verifiable effective model/effort was emitted by a completed subagent event"})
+        discovery_status = "BLOCKED" if delegated["exit_code"] != 0 else (
+            "PASS" if roles and all(event["tool_call"] for event in tool_events.values()) else "BLOCKED")
+        report["checks"].append({"name": "local agent discovery", "classification": "RUNTIME",
+                                 "status": discovery_status,
+                                 "reason": "discovery/delegation invocation did not start" if delegated["exit_code"] != 0 else
+                                 "not all configured subagents produced explicit tool-call events" if discovery_status == "BLOCKED" else None})
     config = root / ".codex" / "config.toml"
     report["checks"].append({"name": "local config file", "classification": "STATIC",
                              "status": "PASS" if config.is_file() else "FAIL"})
     report["checks"].append({"name": "local skill file", "classification": "STATIC",
                              "status": "PASS" if (root / "skills/masp/SKILL.md").is_file() else "FAIL"})
-    # A real fan-out would incur model calls; it is intentionally not run by this low-impact collector.
-    for role in ("masp-identificador", "masp-observador", "masp-analista", "masp-planejador",
-                 "masp-executor", "masp-testador", "masp-padronizador", "masp-relator"):
-        report["checks"].append({"name": f"delegation {role}", "classification": "RUNTIME",
-                                 "status": "NOT_RUN",
-                                 "reason": "would invoke a model; not included in the low-impact smoke"})
-    report["checks"].append({"name": "local agent discovery", "classification": "RUNTIME",
-                             "status": "NOT_RUN", "reason": "no non-interactive read-only discovery command was confirmed"})
-    report["checks"].append({"name": "active model and effort", "classification": "RUNTIME",
-                             "status": "NOT_RUN", "reason": "requires an agent invocation to observe"})
-    report["limitations"].append("Local config/skill file checks are STATIC and do not prove Codex discovery")
-    report["limitations"].append("Eight-role delegation, local agent discovery, and active model/effort were not invoked; no safe read-only path was confirmed")
+    report["limitations"].append("Runtime delegation status requires explicit tool-call and completion events; an assistant claim alone is not accepted")
     report["python"] = sys.version.split()[0]
     errors = validate_codex_smoke_report(report)
     if errors:
