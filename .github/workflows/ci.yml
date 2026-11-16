@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package and test dependencies
+        run: python -m pip install -e ".[test]"
+      - name: Run test suite
+        run: python -m pytest -q
+      - name: Validate routing matrix
+        run: python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC
+      - name: Validate distributed case fixture
+        run: python -m masp_skill.cli validate-case --case tests/fixtures/cases/valid-case.json --root .
