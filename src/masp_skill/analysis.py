@@ -90,7 +90,7 @@ def validate_analysis_record(record: Any) -> list[str]:
                 source_ids.add(source_id)
             for field in ("origin", "description"):
                 _text(source, field, where, errors)
-            if source.get("fact_class") not in FACT_CLASSES:
+            if not isinstance(source.get("fact_class"), str) or source["fact_class"] not in FACT_CLASSES:
                 errors.append(f"{where}.fact_class must be one of {sorted(FACT_CLASSES)}")
 
     hypotheses = record.get("hypotheses")
@@ -116,7 +116,7 @@ def validate_analysis_record(record: Any) -> list[str]:
                           "potential_disconfirmation", "counterevidence_review"):
                 _text(hyp, field, where, errors)
             status = hyp.get("status")
-            if status not in HYPOTHESIS_STATUSES:
+            if not isinstance(status, str) or status not in HYPOTHESIS_STATUSES:
                 errors.append(f"{where}.status must be one of {sorted(HYPOTHESIS_STATUSES)}")
 
             support = _text_list(hyp.get("evidence_for"), f"{where}.evidence_for", errors)
@@ -136,7 +136,7 @@ def validate_analysis_record(record: Any) -> list[str]:
                 errors.append(f"{where}.verification must be an object")
             else:
                 v_status = verification.get("status")
-                if v_status not in VERIFICATION_STATUSES:
+                if not isinstance(v_status, str) or v_status not in VERIFICATION_STATUSES:
                     errors.append(f"{where}.verification.status must be performed or not_run")
                 _text(verification, "method", f"{where}.verification", errors)
                 v_ids = _text_list(verification.get("evidence_ids", []),
@@ -175,12 +175,12 @@ def validate_analysis_record(record: Any) -> list[str]:
         errors.append("conclusion must be an object")
     else:
         kind = conclusion.get("type")
-        if kind not in CONCLUSION_TYPES:
+        if not isinstance(kind, str) or kind not in CONCLUSION_TYPES:
             errors.append(f"conclusion.type must be one of {sorted(CONCLUSION_TYPES)}")
         for field in ("justification", "limitations"):
             _text(conclusion, field, "conclusion", errors)
         basis = conclusion.get("evidence_basis")
-        if basis not in ALL_BASES:
+        if not isinstance(basis, str) or basis not in ALL_BASES:
             errors.append("conclusion.evidence_basis must declare the basis of inference")
         ids = _text_list(conclusion.get("supported_hypothesis_ids"),
                          "conclusion.supported_hypothesis_ids", errors,
@@ -192,7 +192,7 @@ def validate_analysis_record(record: Any) -> list[str]:
         if kind == "inconclusive" and ids:
             errors.append("conclusion.supported_hypothesis_ids must be empty for inconclusive")
         if kind == "supported":
-            if basis not in SUPPORTED_BASES:
+            if not isinstance(basis, str) or basis not in SUPPORTED_BASES:
                 errors.append("conclusion.evidence_basis cannot assert a cause from "
                               "association_only, unknown or invalid basis")
             for hid in ids:
