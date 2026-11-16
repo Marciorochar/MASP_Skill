@@ -31,7 +31,7 @@ Estes são **modelos e esforços configurados** na matriz local. O smoke valida 
 | `masp-relator` | `gpt-6.1-sol` | `medium` | resultados, limitações e pendências |
 | `masp-especialista-critico` | `gpt-6-astra` | `medium` | auditoria crítica/de alto risco |
 
-O smoke registrou compatibilidade catálogo PASS para os dez modelos/esforços configurados. Para os oito papéis filhos, descoberta/delegação e modelo/esforço efetivos estão BLOCKED sem evento estruturado correlacionado. A captura não atesta configuração efetiva do coordenador além do comando usado para iniciar a sondagem.
+O check de compatibilidade de catálogo registrou PASS para nove papéis presentes na sondagem: coordenador e oito papéis filhos. O décimo papel, `masp-especialista-critico`, não consta no artefato do smoke e não teve compatibilidade verificada por esse check. Para os oito filhos, modelo/esforço efetivo, delegação e descoberta estão BLOCKED sem eventos estruturados correlacionados. A captura não atesta configuração efetiva do coordenador além do comando usado para iniciar a sondagem.
 
 ## 4. Inventário de skills
 
@@ -61,9 +61,12 @@ Resultados devem ser interpretados pelo tipo de teste:
 | Verificação | Classificação | Evidência/escopo |
 |---|---|---|
 | `pytest tests/test_documentation.py -q` antes da documentação | `SIMULATED` (teste local) | falhou como esperado; quatro testes documentais detectaram ausência/alinhamento incompleto |
-| `pytest tests/test_documentation.py -q` antes da documentação | `LOCAL TEST` | 4 falharam como esperado por ausência/alinhamento documental |
-| `pytest tests/test_documentation.py -q` após a documentação | `LOCAL TEST` | 4 passaram |
-| `pytest -q` | `LOCAL TEST` | 54 passaram; não cobre runtime Codex real |
+Os testes Python locais são execução da suíte do repositório, separada das classificações de evidência `STATIC`, `SIMULATED` e `RUNTIME`:
+
+| Comando | Resultado | Escopo |
+|---|---|---|
+| `pytest tests/test_documentation.py -q` | execução documental inicial: 4 falharam; revisão da auditoria: 3 falharam antes das correções e 4 passaram depois | teste documental, incluindo preparo da CLI, inventário e precisão sobre runtime |
+| `pytest -q` | 54 passaram | suíte local; não comprova runtime Codex |
 | `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC` | `STATIC` | executado com `PYTHONPATH=src`: oito fases, dez papéis, zero erros |
 | `python -m masp_skill.cli validate-case --case tests/fixtures/cases/valid-case.json --root .` | `STATIC` | executado com `PYTHONPATH=src`: fixture e ledger válidos |
 | smoke `scripts/run_codex_smoke.ps1` capturado nos artefatos | `RUNTIME` | CLI 0.169.0; verificações parciais PASS e checagens de skill/agentes BLOCKED |
@@ -72,7 +75,7 @@ O comando CLI sem pacote instalado no ambiente atual falhou com `ModuleNotFoundE
 
 ## 8. Custo, desempenho e limites operacionais
 
-A política declara máximo de três agentes concorrentes e requer aplicar o limite efetivo do runtime. Isso limita fan-out potencial, mas não é benchmark nem medição de custo. O smoke capturado chamou oito papéis em sequência na tentativa e informa uso agregado do processo, que não atribui tokens por agente nem compara execução serial/paralela. Não há medição validada de custo monetário, latência ou throughput. O coordenador deve registrar o número real de agentes, duração e limite efetivo quando esses dados estiverem disponíveis; não presumir que paralelismo economiza tempo ou tokens.
+A política declara máximo de três agentes concorrentes e requer aplicar o limite efetivo do runtime. Isso limita fan-out potencial, mas não é benchmark nem medição de custo. O prompt do smoke solicitou ao processo uma tentativa sequencial para cada um dos oito papéis filhos; como não foram encontrados eventos estruturados correlacionados de chamada, agente e conclusão, não há evidência de que essas delegações ocorreram. O artefato registra uso agregado do processo, sem atribuição de tokens por agente ou comparação serial/paralela. Não há medição validada de custo monetário, latência ou throughput. O coordenador deve registrar o número real de agentes, duração e limite efetivo quando esses dados estiverem disponíveis; não presumir que paralelismo economiza tempo ou tokens.
 
 ## 9. Riscos, decisões e pendências
 

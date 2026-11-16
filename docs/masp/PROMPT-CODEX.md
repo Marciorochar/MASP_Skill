@@ -14,9 +14,10 @@ Limites autorizados: [ARQUIVOS, COMANDOS E OPERAÇÕES]
 Antes de trabalhar:
 1. Leia o AGENTS.md efetivo do workspace e confirme as ferramentas realmente disponíveis nesta sessão.
 2. Leia a matriz docs/masp/masp-routing.toml e os contratos dos papéis pertinentes.
-3. Rode `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC`.
-4. Crie o manifesto sem sobrescrever nada: `python -m masp_skill.cli new-case --id [ID MASP] --output [ARQUIVO NOVO DENTRO DO WORKSPACE] --root [WORKSPACE]`.
-5. Registre a revisão com `python -m masp_skill.cli case-revision --case [MANIFESTO]` e confira o manifesto com `python -m masp_skill.cli validate-case --case [MANIFESTO] --root [WORKSPACE]`.
+3. Prepare o pacote local com `python -m pip install -e .` antes de chamar a CLI (ou configure `PYTHONPATH=src` no ambiente atual).
+4. Rode `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC`.
+5. Crie o manifesto sem sobrescrever nada: `python -m masp_skill.cli new-case --id [ID MASP] --output [ARQUIVO NOVO DENTRO DO WORKSPACE] --root [WORKSPACE]`.
+6. Registre a revisão com `python -m masp_skill.cli case-revision --case [MANIFESTO]` e confira o manifesto com `python -m masp_skill.cli validate-case --case [MANIFESTO] --root [WORKSPACE]`.
 
 Siga Identificação, Observação, Análise, Plano de ação, Ação, Verificação, Padronização e Conclusão na ordem. Não avance um gate sem suas evidências. Mantenha cada evidência dentro do workspace autorizado. Antes de cada transição, consulte a revisão atual e passe o SHA-256 esperado conforme `python -m masp_skill.cli transition --help`.
 

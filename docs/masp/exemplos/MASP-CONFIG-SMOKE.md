@@ -23,7 +23,10 @@ O runner grava evidência JSON e Markdown sob `docs/masp/evidencias/`. Confira c
 
 Para validações locais separadas do smoke:
 
+Prepare o pacote antes de executar comandos da CLI:
+
 ```powershell
+python -m pip install -e .
 python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC
 python -m masp_skill.cli validate-case --case tests/fixtures/cases/valid-case.json --root .
 python -m pytest -q

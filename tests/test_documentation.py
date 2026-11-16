@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import re
 import tomllib
 
@@ -28,6 +29,12 @@ def test_docs_describe_existing_commands_and_safe_case_startup():
         assert f"masp_skill.cli {command}" in docs
     assert "--id" in docs and "--output" in docs and "--root" in docs
     assert "SIMULATED" in docs and "RUNTIME" in docs and "STATIC" in docs
+    for path in (README, PROMPT, EXAMPLE):
+        text = read(path)
+        install = text.find("python -m pip install -e")
+        first_cli = text.find("python -m masp_skill.cli")
+        pythonpath = text.find("PYTHONPATH=src")
+        assert install >= 0 or (pythonpath >= 0 and pythonpath < first_cli), path
 
 
 def test_report_inventories_roles_skills_architecture_files_tests_and_risks():
@@ -50,6 +57,13 @@ def test_report_inventories_roles_skills_architecture_files_tests_and_risks():
         assert heading.lower() in report.lower()
     assert "BLOCKED" in report
     assert "Task 7" in report
+    assert "nove" in report.lower() and "masp-especialista-critico" in report
+    assert "décimo" in report.lower() or "10º" in report
+    smoke = json.loads(SMOKE_JSON.read_text(encoding="utf-8"))
+    catalog_check = next(item for item in smoke["checks"] if item["name"] == "role model/effort catalog compatibility")
+    assert catalog_check["status"] == "PASS"
+    assert len(catalog_check["roles"]) == 9
+    assert "masp-especialista-critico" not in catalog_check["roles"]
 
 
 def test_report_classifies_runtime_from_recorded_smoke_and_does_not_claim_discovery():
@@ -60,6 +74,9 @@ def test_report_classifies_runtime_from_recorded_smoke_and_does_not_claim_discov
     assert '"classification": "RUNTIME"' in raw
     assert "MASP skill load (RUNTIME): **BLOCKED**" in evidence
     assert "local agent discovery (RUNTIME): **BLOCKED**" in evidence
+    assert "solicit" in report.lower() and "eventos correlacionados" in report.lower()
+    assert "chamou oito papéis" not in report.lower()
+    assert "LOCAL TEST" not in report
     for text in (report, example):
         assert "STATIC" in text and "SIMULATED" in text and "RUNTIME" in text
         assert "BLOCKED" in text

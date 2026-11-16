@@ -6,6 +6,12 @@ Este repositório reúne uma matriz de roteamento, contratos para dez papéis, u
 
 No diretório raiz deste repositório, valide a matriz e crie um manifesto em local novo dentro do workspace:
 
+Prepare o pacote antes do primeiro comando da CLI:
+
+```powershell
+python -m pip install -e .
+```
+
 ```powershell
 python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC
 python -m masp_skill.cli new-case --id MASP-002 --output .tmp/MASP-002.json --root .
