@@ -47,7 +47,7 @@ O processo segue **oito fases em sequência**. Cada fase possui entradas, entreg
 | 1. Identificação | Problema, impacto, escopo e métrica de sucesso |
 | 2. Observação | Situação atual, fontes, baseline quantitativo/qualitativo e limitações de coleta |
 | 3. Análise | Hipóteses concorrentes, evidências favoráveis/contrárias e causa sustentada ou inconclusão |
-| 4. Plano de ação | Tarefas, riscos, rollback, testes e registro de aprovação humana |
+| 4. Plano de ação | Alternativas, 5W2H, riscos, rollback/contingência, testes e aprovação humana real |
 | 5. Ação | Mudanças aprovadas, diff e comandos/resultados |
 | 6. Verificação | Comparação com baseline, testes e revisão independente |
 | 7. Padronização | Controle preventivo, responsável e regressão |
@@ -143,6 +143,16 @@ python -m masp_skill.cli validate-analysis --record .tmp/analise.json --root .
 ```
 
 **Atenção:** o resultado `STATIC` verifica apenas declarações e vínculos estruturais; não confirma que o agente analisou os fatos, que fontes são realmente independentes ou que uma causa raiz foi demonstrada. Mais detalhes e referências: [documentação de Análise](docs/masp/analise/).
+
+## Plano de Ação Universal v2 — preparar sem executar
+
+O [Módulo 04](docs/masp/plano-acao/ESPECIFICACAO-V2.md) seleciona **a intervenção mínima adequada**, compara alternativas, monta plano **5W2H**, riscos, rollback ou contingência, critérios de teste e autorização. Pode ser usado em processos industriais, serviços, logística, saúde, educação, ambiente, tecnologia e situações cotidianas. Consulte o [modelo 5W2H](docs/masp/plano-acao/MODELO-5W2H.md) e a [matriz de riscos](docs/masp/plano-acao/MATRIZ-RISCOS-CONTINGENCIAS.md).
+
+```powershell
+python -m masp_skill.cli validate-action-plan --record .tmp/plano.json --root .
+```
+
+O comando verifica apenas a **estrutura declarada (`STATIC`)**. Mesmo uma ficha JSON com status `approved` **não autentica aprovação humana, não concede `PASS` ao Gate 04 e não autoriza a fase Ação**. Uma Análise inconclusiva não pode fundamentar ação corretiva definitiva.
 
 ## O que significam os resultados?
 
