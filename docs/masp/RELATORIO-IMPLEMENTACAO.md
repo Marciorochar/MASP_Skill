@@ -1,5 +1,7 @@
 # Relatório técnico de implementação MASP multiagentes
 
+> **Registro histórico (PRs #1–#2):** este relatório descreve a implementação anterior e não deve ser interpretado como o estado runtime após o PR #4. A skill canônica do Codex está atualmente em `.agents/skills/masp/SKILL.md`, enquanto `skills/masp/SKILL.md` é somente um ponteiro de compatibilidade. Consulte `RELATORIO-AUDITORIA-PR4.md` e `VALIDACAO-RUNTIME-PR4.md` para as verificações e limitações atuais.
+
 **Escopo deste relatório:** implementação local no repositório MASP_Skill, Tasks 1–6 do plano. **Estado da integração runtime: BLOCKED em descoberta e carregamento.** Este documento consolida evidências; não é a auditoria independente ASTRA da Task 7.
 
 ## 1. Resumo e decisão
