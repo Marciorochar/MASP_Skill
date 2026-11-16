@@ -370,10 +370,10 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
         return ["case must be an object"]
     errors: list[str] = []
     schema_version = case.get("schema_version")
-    if schema_version == 1 and case.get("ledger"):
-        errors.append("schema_version 1 ledgers require migration to version 2; recreate or explicitly migrate each event with historical model snapshots and evidence SHA-256 hashes")
-    elif schema_version not in {1, 2}:
+    if not isinstance(schema_version, int) or isinstance(schema_version, bool) or schema_version not in (1, 2):
         errors.append(f"unsupported schema_version {schema_version!r}; create a version 2 case")
+    elif schema_version == 1 and case.get("ledger"):
+        errors.append("schema_version 1 ledgers require migration to version 2; recreate or explicitly migrate each event with historical model snapshots and evidence SHA-256 hashes")
     if not isinstance(case.get("case_id"), str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{1,63}", case.get("case_id", "")):
         errors.append("case id is missing or invalid")
     if case.get("classification") != "SIMULATED":
@@ -387,8 +387,10 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
     if case.get("genesis_hash") != _genesis_hash(case):
         errors.append("manifest genesis hash mismatch (origin or risk metadata changed)")
     state = case.get("initial_state")
-    if state not in {"PENDING", "BLOCKED"}:
+    if not isinstance(state, str) or state not in {"PENDING", "BLOCKED"}:
         errors.append("initial_state must be PENDING or BLOCKED")
+        if not isinstance(state, str):
+            return errors
     phase_name = case.get("origin_phase")
     ledger = case.get("ledger")
     if not isinstance(ledger, list):
@@ -433,7 +435,8 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
                 )
             if not allowed:
                 errors.append(f"ledger replay phase order mismatch at event {index}")
-        if event.get("new_state") not in ALLOWED_TRANSITIONS.get(state, set()):
+        new_state = event.get("new_state")
+        if not isinstance(new_state, str) or new_state not in ALLOWED_TRANSITIONS.get(state, set()):
             errors.append(f"ledger replay has illegal state transition at event {index}")
         try:
             phase_data = _phase(routing, event.get("phase"))
@@ -465,7 +468,7 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
                     errors.append(f"event {index}: {astra_error or 'historical Astra model availability snapshot is missing or invalid'}")
             if phase_data.get("id") == "acao" and not _plan_approval_recorded(case, ledger[:index - 1]):
                 errors.append(f"event {index}: action started before plan approval gate")
-        state = event.get("new_state") if event.get("new_state") in STATES else state
+        state = new_state if isinstance(new_state, str) and new_state in STATES else state
         phase_name = event.get("phase") if event.get("phase") in names else phase_name
         previous_hash = event.get("event_hash", "")
     if state != case.get("state") or phase_name != case.get("current_phase"):

@@ -34,7 +34,7 @@ Os estados do caso são `PENDING`, `IN_PROGRESS`, `PASS`, `FAIL`, `BLOCKED` e `N
 
 - [`docs/masp/masp-routing.toml`](docs/masp/masp-routing.toml): oito fases, dez papéis e políticas transversais.
 - [`.codex/`](.codex/): registro de configuração local e dez contratos de agentes.
-- [`skills/masp/SKILL.md`](skills/masp/SKILL.md): instruções da skill local.
+- [`.agents/skills/masp/SKILL.md`](.agents/skills/masp/SKILL.md): instruções da skill local.
 - [`src/masp_skill/`](src/masp_skill/): validação, ledger, evidências e CLI.
 - [`docs/masp/RELATORIO-IMPLEMENTACAO.md`](docs/masp/RELATORIO-IMPLEMENTACAO.md): inventário, decisões, testes, riscos e limites observados.
 - [`docs/masp/exemplos/MASP-CONFIG-SMOKE.md`](docs/masp/exemplos/MASP-CONFIG-SMOKE.md): leitura guiada da evidência atual do smoke.
@@ -44,3 +44,16 @@ Os estados do caso são `PENDING`, `IN_PROGRESS`, `PASS`, `FAIL`, `BLOCKED` e `N
 Instale o extra de desenvolvimento (`python -m pip install -e ".[test]"`) e rode `python -m pytest -q`. Isso testa código Python local; não reproduz descoberta de agentes nem carregamento da skill no Codex. O smoke runtime é separado e pode ser solicitado por `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_codex_smoke.ps1`; ele executa sondagens reais do CLI e produz evidência sob `docs/masp/evidencias/`.
 
 O piloto [`MASP-001`](docs/masp/exemplos/MASP-001-falha-gcc-c.md) é ilustrativo. Este repositório não reproduz a falha do OTServer, não altera seu código e não autoriza execução no servidor, banco ou binários.
+
+
+## PR #3 — Validação de robustez e smoke mínimo
+
+A skill descoberta pelo Codex tem fonte canônica em `.agents/skills/masp/SKILL.md`; `skills/masp/SKILL.md` é apenas um ponteiro de compatibilidade. Os testes adversariais verificam rejeição controlada de entradas JSON/TOML malformadas e o piloto de oito fases é um caso **SIMULATED** sem agentes reais.
+
+O smoke runtime é **opcional e manual**: por padrão tenta apenas um subagente em sandbox `read-only`, evitando sondar os oito papéis sem necessidade. Para uma execução autorizada, com o Codex instalado, use:
+
+```powershell
+python -m masp_skill.cli runtime-smoke --root . --output-dir docs/masp/evidencias --strict
+```
+
+`--all-roles` amplia explicitamente a tentativa a todos os papéis e pode consumir muitos tokens. `--strict` retorna código diferente de zero quando existem checagens `FAIL` ou `BLOCKED`. Papéis não sondados são `NOT_RUN`; descoberta completa continua `BLOCKED`. O GitHub Actions não chama esse smoke e não executa inferência paga. Relatórios históricos de smoke não comprovam funcionamento das novas configurações.

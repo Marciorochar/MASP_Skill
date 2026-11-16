@@ -5,7 +5,7 @@ Este repositório contém os contratos documentais, a skill local MASP e uma CLI
 ## Organização
 
 - `MASP-ARQUITETURA.md`: fluxo, estados e critérios de passagem.
-- `../../skills/masp/SKILL.md`: skill local com fluxo MASP, limites de evidência e uso da CLI.
+- `../../.agents/skills/masp/SKILL.md`: skill local com fluxo MASP, limites de evidência e uso da CLI.
 - `../../skills/masp/references/routing-guide.md`: fases, gates, evidências e comandos oficiais.
 - `masp-routing.toml`: matriz declarativa consumida pela CLI.
 - `AGENTS-MASP-ADENDO.md`: regras para incorporar ao AGENTS.md existente, sem substituí-lo.
@@ -22,7 +22,7 @@ Este repositório contém os contratos documentais, a skill local MASP e uma CLI
 4. Confira se o Codex realmente oferece delegação de subagentes. Em ambientes compatíveis, a skill do Superpowers para Codex descreve `[features] multi_agent = true` no `~/.codex/config.toml`; configurar isso é uma ação separada, com autorização do usuário, e a disponibilidade real deve ser conferida na sessão.
 5. Use `PROMPT-CODEX.md` para começar o piloto `MASP-001` em modo diagnóstico. Não execute ação sobre servidor, DB ou binários desconhecidos.
 6. Não considere documentos de papel uma criação real de agentes. O coordenador deve verificar as ferramentas disponíveis e, somente então, criar/dispatchar os agentes nos mecanismos suportados.
-7. Neste repositório, consulte `skills/masp/SKILL.md` para a integração local e execute `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC` para validar estaticamente a matriz. `STATIC` não confirma descoberta, delegação ou comportamento em runtime.
+7. Neste repositório, consulte `.agents/skills/masp/SKILL.md` para a integração local e execute `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC` para validar estaticamente a matriz. `STATIC` não confirma descoberta, delegação ou comportamento em runtime.
 
 ## Princípios
 
