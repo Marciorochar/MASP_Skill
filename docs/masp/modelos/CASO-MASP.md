@@ -98,6 +98,21 @@ Este registro humano complementa o manifesto existente, sem alterar `schema_vers
 - Gate 03 recomendado `PASS`/`FAIL`/`BLOCKED`, razão e evidência para cada critério:
 - Comando opcional: `python -m masp_skill.cli validate-analysis --record .tmp/analise.json --root .`. Esta saída STATIC não aprova o gate nem autentica causas.
 
+### Ficha de Plano de Ação universal v2
+
+Usar [a especificação](../plano-acao/ESPECIFICACAO-V2.md), [o modelo 5W2H](../plano-acao/MODELO-5W2H.md) e [a matriz de riscos/contingências](../plano-acao/MATRIZ-RISCOS-CONTINGENCIAS.md) para produzir um plano humano sem alterar manifesto ou ledger:
+
+- Problema M01, baseline M02, causa sustentada ou inconclusão M03, objetivo, escopo e exclusões:
+- Alternativas comparadas, mudança mínima **adequada** e justificativa:
+- `tasks` 5W2H, `owners`, dependências, recursos e `scope`:
+- `risks`, prevenção, mitigação, stop e riscos residuais:
+- `rollback` reversível, parcial ou **contingência** para mudança irreversível:
+- `tests` futuros, baseline ou pendência, aceitação, falha, verificador e stop:
+- `human_approval`: pessoa/função realmente autorizada, decisão, referência, escopo e limites:
+- Gate 04 `PASS` / `FAIL` / `BLOCKED`, evidências e limitações. Sem prova real de autorização, **não iniciar Ação**.
+
+CLI opcional `python -m masp_skill.cli validate-action-plan --record .tmp/plano.json --root .`: valida estrutura `STATIC`, mas **não** autentica aprovação ou libera a intervenção.
+
 ### Ledger resumido dos gates
 
 | Fase | Estado | Evidência/IDs | Revisão independente | Próxima decisão |
