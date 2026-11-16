@@ -51,6 +51,22 @@ Esta ficha complementa o manifesto JSON para planejamento e leitura humana. Seu 
 - Objetivo quantitativo:
 - Fora do escopo:
 
+### Ficha de Identificação universal v2
+
+Ficha Markdown complementar ao manifesto, sem novos campos no JSON ou ledger. Siga [a especificação](../identificacao/ESPECIFICACAO-V2.md).
+
+- Condição observada e condição esperada do problema:
+- Contexto, local e período:
+- Afetados:
+- Impacto conhecido ou potencial (e fonte):
+- Escopo e exclusões:
+- Critério de sucesso verificável numérico ou qualitativo e método:
+- Baseline conhecido ou `PENDENTE_DE_OBSERVACAO`:
+- Fontes, data e limitações:
+- Classificação de cada informação: `FATO_VERIFICADO`, `RELATO_NAO_VERIFICADO`, `HIPOTESE` ou `DESCONHECIDO`:
+- Contradições e pendências para Observação:
+- Gate `PASS` ou `BLOCKED`, justificativa e desbloqueio se aplicável:
+
 ### Ledger resumido dos gates
 
 | Fase | Estado | Evidência/IDs | Revisão independente | Próxima decisão |
@@ -66,7 +82,7 @@ Esta ficha complementa o manifesto JSON para planejamento e leitura humana. Seu 
 
 ### Critério de sucesso
 
-[Condição verificável, baseline, resultado esperado e método de medição.]
+[Condição verificável numérica ou qualitativa, baseline conhecido ou PENDENTE_DE_OBSERVACAO, resultado esperado e método de verificação.]
 
 ### Registro humano de evidências
 
