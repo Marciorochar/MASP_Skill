@@ -2,9 +2,12 @@
   "schema_version": 1,
   "case_id": "MASP-FIXTURE",
   "classification": "SIMULATED",
+  "origin_phase": "Identificação",
   "current_phase": "Identificação",
+  "initial_state": "PENDING",
   "state": "PENDING",
   "high_risk": false,
-  "approvals": {},
-  "ledger": []
+  "ledger": [],
+  "authority_note": "Actor, approval, role, model, classification and opinion fields are caller-supplied simulation labels; no runtime identity or signature is verified.",
+  "genesis_hash": "4574918e2df9baf617118da57b89552c9b44f7abe0d8914262cf802595e95e2c"
 }

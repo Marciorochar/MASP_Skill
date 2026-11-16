@@ -36,6 +36,8 @@ def make_evidence(
 def validate_evidence(evidence: list[dict[str, Any]], root: Path) -> list[str]:
     """Return errors for malformed or missing evidence references."""
     root = Path(root).resolve()
+    if not isinstance(evidence, list):
+        return ["evidence must be an array"]
     errors: list[str] = []
     seen: set[str] = set()
     for index, item in enumerate(evidence):
@@ -55,6 +57,11 @@ def validate_evidence(evidence: list[dict[str, Any]], root: Path) -> list[str]:
             continue
         path = Path(reference)
         resolved = path.resolve() if path.is_absolute() else (root / path).resolve()
+        try:
+            resolved.relative_to(root)
+        except ValueError:
+            errors.append(f"{label} path escapes evidence root {root}: {reference}")
+            continue
         if not resolved.is_file():
             errors.append(f"{label} references missing file {reference}")
         classification = item.get("classification")
