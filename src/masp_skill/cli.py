@@ -16,6 +16,7 @@ from .case import case_revision, create_case, transition_case, validate_case, va
 from .routing import load_agent_configs, load_routing, validate_agent_configs, validate_routing
 from .observation import validate_observation_record
 from .analysis import validate_analysis_record
+from .action_plan import validate_action_plan_record
 
 
 def _read_json(path: Path):
@@ -560,6 +561,10 @@ def main(argv: list[str] | None = None) -> int:
     analysis.add_argument("--record", type=Path, required=True)
     analysis.add_argument("--root", type=Path, default=Path.cwd())
 
+    action_plan = commands.add_parser("validate-action-plan", help="check a planning sidecar (STATIC only; no human approval authentication)")
+    action_plan.add_argument("--record", type=Path, required=True)
+    action_plan.add_argument("--root", type=Path, default=Path.cwd())
+
     smoke = commands.add_parser("runtime-smoke", help="collect low-impact Codex CLI smoke evidence")
     smoke.add_argument("--root", type=Path, default=Path.cwd())
     smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
@@ -568,6 +573,16 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        if args.command == "validate-action-plan":
+            record_path = _within_root(args.record, args.root)
+            issues = validate_action_plan_record(_read_json(record_path))
+            if issues:
+                print(f"STATIC: {len(issues)} problema(s) estruturais no plano de ação")
+                for issue in issues:
+                    print(f"- {issue}")
+                return 1
+            print("STATIC: plano estruturalmente válido; não autentica aprovação humana, execução nem gate MASP")
+            return 0
         if args.command == "validate-analysis":
             record_path = _within_root(args.record, args.root)
             issues = validate_analysis_record(_read_json(record_path))
