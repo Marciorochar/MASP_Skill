@@ -125,6 +125,8 @@ def validate_routing(data: dict[str, Any]) -> list[str]:
             if not isinstance(phase.get(key), str) or not phase[key].strip():
                 errors.append(f"phase {index + 1} is missing {key}")
         phase_id = phase.get("id") if isinstance(phase.get("id"), str) else str(index + 1)
+        if index < len(PHASE_IDS) and phase_id != PHASE_IDS[index]:
+            errors.append(f"phase {index + 1} id mismatch: expected {PHASE_IDS[index]!r} for {PHASES[index]!r}")
         role_ref = phase.get("role")
         if isinstance(role_ref, str) and role_ref not in ROLE_MODELS:
             errors.append(f"phase {phase_id} references unknown role {role_ref!r}")
