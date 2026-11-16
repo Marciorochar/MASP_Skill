@@ -275,7 +275,7 @@ def _skill_load_evidence(stdout: str, skill_name: str = "masp") -> dict | None:
     return None
 
 
-def run_codex_smoke(root: Path, output_dir: Path) -> dict:
+def run_codex_smoke(root: Path, output_dir: Path, *, all_roles: bool = False) -> dict:
     """Run read-only CLI probes and an ephemeral, read-only role delegation attempt."""
     root = Path(root).resolve()
     output_dir = _within_root(Path(output_dir), root)
@@ -365,7 +365,9 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
         report["checks"].append({"name": "role model/effort catalog compatibility", "classification": "RUNTIME",
                                  "status": "PASS" if phases and all(x["catalog_status"] == "PASS" for x in phases.values()) else "FAIL",
                                  "roles": phases})
-        roles = [name for name in local_agents if name != "masp-coordenador"]
+        configured_roles = [name for name in local_agents if name != "masp-coordenador"]
+        roles = configured_roles if all_roles else configured_roles[:1]
+        unprobed_roles = configured_roles[len(roles):]
         coordinator = local_agents.get("masp-coordenador", {})
         prompt = (
             "You are testing this repository's local MASP coordinator and skill in a read-only smoke. "
@@ -417,17 +419,27 @@ def run_codex_smoke(root: Path, output_dir: Path) -> dict:
                                      "expected_model": configured.get("model"), "expected_effort": configured.get("effort"),
                                      "observed_model": event["observed_model"], "observed_effort": event["observed_effort"],
                                      "reason": None if observed_matches else "no matching effective model/effort in structured completion evidence"})
-        discovery_status = "BLOCKED" if not delegated["process_completed"] or delegated["exit_code"] != 0 else (
-            "PASS" if roles and all(event["tool_call"] and event["completion"] for event in tool_events.values()) else "BLOCKED")
+        for unprobed_role in unprobed_roles:
+            for prefix in ("delegation", "effective model/effort"):
+                report["checks"].append({
+                    "name": f"{prefix} {unprobed_role}",
+                    "classification": "RUNTIME",
+                    "status": "NOT_RUN",
+                    "reason": "minimal smoke checks one subagent only; use --all-roles to attempt complete coverage",
+                })
+        discovery_status = "BLOCKED" if (
+            unprobed_roles or not delegated["process_completed"] or delegated["exit_code"] != 0
+        ) else ("PASS" if roles and all(event["tool_call"] and event["completion"] for event in tool_events.values()) else "BLOCKED")
         report["checks"].append({"name": "local agent discovery", "classification": "RUNTIME",
                                  "status": discovery_status,
                                  "reason": "discovery/delegation invocation did not complete successfully" if not delegated["process_completed"] or delegated["exit_code"] != 0 else
-                                 "not all configured subagents produced explicit tool-call events" if discovery_status == "BLOCKED" else None})
+                                 "full discovery not tested by minimal smoke" if unprobed_roles else
+                                  "not all configured subagents produced explicit tool-call events" if discovery_status == "BLOCKED" else None})
     config = root / ".codex" / "config.toml"
     report["checks"].append({"name": "local config file", "classification": "STATIC",
                              "status": "PASS" if config.is_file() else "FAIL"})
     report["checks"].append({"name": "local skill file", "classification": "STATIC",
-                             "status": "PASS" if (root / "skills/masp/SKILL.md").is_file() else "FAIL"})
+                             "status": "PASS" if (root / ".agents/skills/masp/SKILL.md").is_file() else "FAIL"})
     report["limitations"].append("Runtime delegation status requires explicit tool-call and completion events; an assistant claim alone is not accepted")
     report["python"] = sys.version.split()[0]
     errors = validate_codex_smoke_report(report)
@@ -482,11 +494,13 @@ def main(argv: list[str] | None = None) -> int:
     smoke.add_argument("--root", type=Path, default=Path.cwd())
     smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
     smoke.add_argument("--strict", action="store_true", help="return nonzero when a check fails or is blocked")
+    smoke.add_argument("--all-roles", action="store_true", help="explicitly attempt all configured roles; may incur substantial inference cost")
 
     args = parser.parse_args(argv)
     try:
         if args.command == "runtime-smoke":
-            report = run_codex_smoke(args.root, args.output_dir)
+            report = (run_codex_smoke(args.root, args.output_dir, all_roles=True) if args.all_roles
+                      else run_codex_smoke(args.root, args.output_dir))
             print(f"{report['classification']}: relatório salvo em {args.output_dir}")
             if args.strict and any(check.get("status") in {"FAIL", "BLOCKED"} for check in report.get("checks", [])):
                 return 1
