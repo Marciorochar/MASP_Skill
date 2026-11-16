@@ -20,7 +20,7 @@ The coordinator uses `superpowers:dispatching-parallel-agents` for independent r
 
 ## Core pattern
 
-1. **Identificação**: define the problem, impact, scope, exclusions, and success measure.
+1. **Identificação**: follow [the universal v2 specification](../../../docs/masp/identificacao/ESPECIFICACAO-V2.md): describe observed versus expected conditions, impact, scope, exclusions, and a verifiable numeric or qualitative success criterion. Classify uncertainty, record missing baseline as PENDENTE_DE_OBSERVACAO without automatic blocking, and hand off gaps to Observação. Do not conclude cause or prescribe a solution. Address immediate safety first using applicable procedures; MASP does not replace them.
 2. **Observação**: capture baseline, environment, collection method, reproducible result, and limitations.
 3. **Análise**: compare hypotheses against evidence; state the supported cause or the unresolved question.
 4. **Plano de ação**: list tasks, owners, scope, risks, rollback, tests, and recorded human approval.
