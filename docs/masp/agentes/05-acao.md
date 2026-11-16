@@ -8,7 +8,7 @@
 
 **Gate:** Toda mudança tem teste e escopo controlado? Se não, não avança.
 
-**Skills Superpowers pertinentes:** `superpowers:using-git-worktrees; superpowers:test-driven-development; superpowers:subagent-driven-development`. Leia as instruções reais dessas skills; não presuma que nomes criam processos automaticamente.
+**Skills Superpowers pertinentes:** `superpowers:using-git-worktrees; superpowers:test-driven-development`. `superpowers:subagent-driven-development` é o fluxo do coordenador para executar tarefas de um plano aprovado, quando o runtime suportar; não autoriza este executor ou agentes filhos a criarem subagentes. Se o fluxo não estiver disponível, o coordenador decide execução serial segura ou registra `BLOCKED`. Leia as instruções reais dessas skills; não presuma que nomes criam processos automaticamente.
 
 ## Contrato de atuação
 

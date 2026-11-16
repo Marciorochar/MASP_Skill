@@ -8,7 +8,7 @@
 
 **Gate:** Há dados suficientes para comparar antes/depois e gerar hipóteses? Se não, BLOCKED.
 
-**Skills Superpowers pertinentes:** `superpowers:systematic-debugging; superpowers:dispatching-parallel-agents apenas para leituras independentes`. Leia as instruções reais dessas skills; não presuma que nomes criam processos automaticamente.
+**Skills Superpowers pertinentes:** `superpowers:systematic-debugging`. `superpowers:dispatching-parallel-agents` é usada pelo coordenador para decidir e atribuir leituras independentes; não é autorização para este agente delegar. Leia as instruções reais quando disponíveis; não presuma que nomes criam processos automaticamente.
 
 ## Contrato de atuação
 

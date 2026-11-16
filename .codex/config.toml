@@ -1,0 +1,32 @@
+[agents]
+max_threads = 3
+
+[agents.masp-coordenador]
+config_file = "agents/masp-coordenador.toml"
+
+[agents.masp-identificador]
+config_file = "agents/masp-identificador.toml"
+
+[agents.masp-observador]
+config_file = "agents/masp-observador.toml"
+
+[agents.masp-analista]
+config_file = "agents/masp-analista.toml"
+
+[agents.masp-planejador]
+config_file = "agents/masp-planejador.toml"
+
+[agents.masp-executor]
+config_file = "agents/masp-executor.toml"
+
+[agents.masp-testador]
+config_file = "agents/masp-testador.toml"
+
+[agents.masp-padronizador]
+config_file = "agents/masp-padronizador.toml"
+
+[agents.masp-relator]
+config_file = "agents/masp-relator.toml"
+
+[agents.masp-especialista-critico]
+config_file = "agents/masp-especialista-critico.toml"
