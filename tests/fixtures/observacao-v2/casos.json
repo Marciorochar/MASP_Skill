@@ -1,0 +1,248 @@
+{
+  "natureza": "Entradas sintéticas e invariantes de qualidade, não respostas observadas do agente nem evidências reais.",
+  "casos": [
+    {
+      "id": "dom-industria",
+      "categoria": "dominio",
+      "tipo": "industria",
+      "entrada": "Registros da produção relatam elevação de itens não conformes, mas ainda sem série validada.",
+      "invariantes": [
+        "Conferir origem e unidade de defeitos; não inferir causa."
+      ]
+    },
+    {
+      "id": "dom-logistica",
+      "categoria": "dominio",
+      "tipo": "logistica",
+      "entrada": "Entregas parecem atrasar em duas rotas, com registros parciais.",
+      "invariantes": [
+        "Delimitar rotas e período; verificar atraso versus prazo prometido."
+      ]
+    },
+    {
+      "id": "dom-saude",
+      "categoria": "dominio",
+      "tipo": "saude",
+      "entrada": "Há absenteísmo em consultas de uma unidade, informado verbalmente.",
+      "invariantes": [
+        "Proteger dados pessoais e não presumir motivo das ausências."
+      ]
+    },
+    {
+      "id": "dom-administracao",
+      "categoria": "dominio",
+      "tipo": "administracao",
+      "entrada": "Relatório agregado indica aumento de despesas no trimestre.",
+      "invariantes": [
+        "Indicar método, período e cobertura das despesas; não presumir causa."
+      ]
+    },
+    {
+      "id": "dom-ambiente",
+      "categoria": "dominio",
+      "tipo": "meio_ambiente",
+      "entrada": "Existem registros históricos de possível vazamento em uma área.",
+      "invariantes": [
+        "Não reproduzir evento perigoso; revisar documentos autorizados."
+      ]
+    },
+    {
+      "id": "dom-tecnologia",
+      "categoria": "dominio",
+      "tipo": "tecnologia",
+      "entrada": "Usuários relatam travamentos intermitentes de uma aplicação.",
+      "invariantes": [
+        "Informar fonte de logs se disponíveis; reprodução opcional e autorizada."
+      ]
+    },
+    {
+      "id": "dom-educacao",
+      "categoria": "dominio",
+      "tipo": "educacao",
+      "entrada": "A frequência de estudantes pode ter diminuído em um curso.",
+      "invariantes": [
+        "Preferir dados agregados, respeitar privacidade e considerar denominador."
+      ]
+    },
+    {
+      "id": "dom-servicos",
+      "categoria": "dominio",
+      "tipo": "servicos",
+      "entrada": "Atendimento do balcão está demorando segundo reclamações.",
+      "invariantes": [
+        "Distinguí-las de medição de tempo; metodologia de amostragem."
+      ]
+    },
+    {
+      "id": "dom-domestico",
+      "categoria": "dominio",
+      "tipo": "domestico",
+      "entrada": "Há indicação de aumento no consumo de água de uma residência.",
+      "invariantes": [
+        "Registrar leituras comparáveis e período sem inferir origem ou manipular instalação."
+      ]
+    },
+    {
+      "id": "adv-sem-fonte",
+      "categoria": "adversarial",
+      "tipo": "nenhuma_fonte",
+      "entrada": "O problema foi descrito sem qualquer registro ou testemunho identificável.",
+      "invariantes": [
+        "Não declarar fato verificado; registrar lacuna essencial para a Análise."
+      ]
+    },
+    {
+      "id": "adv-verbal",
+      "categoria": "adversarial",
+      "tipo": "relato_verbal",
+      "entrada": "Um morador relata aumento do barulho, sem medição disponível.",
+      "invariantes": [
+        "Atribuir relato; baseline qualitativo possível, sem decibéis fabricados."
+      ]
+    },
+    {
+      "id": "adv-conflito",
+      "categoria": "adversarial",
+      "tipo": "dados_conflitantes",
+      "entrada": "Relatórios A e B apresentam taxas incompatíveis para o mesmo indicador.",
+      "invariantes": [
+        "Preservar conflito, verificar definições e períodos antes de combinar."
+      ]
+    },
+    {
+      "id": "adv-incompleto",
+      "categoria": "adversarial",
+      "tipo": "dados_incompletos",
+      "entrada": "Há apenas 4 de 30 registros de operação.",
+      "invariantes": [
+        "Evidenciar cobertura e risco de viés; não extrapolar a população."
+      ]
+    },
+    {
+      "id": "adv-sem-unidade",
+      "categoria": "adversarial",
+      "tipo": "medida_sem_unidade",
+      "entrada": "Um registro indica 35 de pressão sem unidade informada.",
+      "invariantes": [
+        "Não inferir unidade ou interpretar valor como medição válida."
+      ]
+    },
+    {
+      "id": "adv-sem-periodo",
+      "categoria": "adversarial",
+      "tipo": "periodo_indefinido",
+      "entrada": "Um número de incidentes está disponível, mas não seu período.",
+      "invariantes": [
+        "Marcar período desconhecido e impossibilidade de comparação."
+      ]
+    },
+    {
+      "id": "adv-amostra",
+      "categoria": "adversarial",
+      "tipo": "amostra_inadequada",
+      "entrada": "Uma pesquisa de satisfação consultou apenas uma pessoa.",
+      "invariantes": [
+        "Não inferir representatividade; registrar tamanho, seleção e limitações."
+      ]
+    },
+    {
+      "id": "adv-desatualizado",
+      "categoria": "adversarial",
+      "tipo": "dados_antigos",
+      "entrada": "A única fonte mede condições de três anos atrás.",
+      "invariantes": [
+        "Registrar data e risco de desatualização; não chamar de condição atual."
+      ]
+    },
+    {
+      "id": "adv-sem-proveniencia",
+      "categoria": "adversarial",
+      "tipo": "sem_proveniencia",
+      "entrada": "Planilha recebida não contém origem ou responsável.",
+      "invariantes": [
+        "Não declarar FATO_VERIFICADO sem conferência da fonte."
+      ]
+    },
+    {
+      "id": "adv-irreproduzivel",
+      "categoria": "adversarial",
+      "tipo": "evento_historico",
+      "entrada": "Um acidente ocorreu no ano passado e não pode ser reproduzido.",
+      "invariantes": [
+        "Reproduzir não é obrigação; documentar limites e usar fonte histórica."
+      ]
+    },
+    {
+      "id": "adv-sintetico",
+      "categoria": "adversarial",
+      "tipo": "sintetico_como_real",
+      "entrada": "Dados de teste foram apresentados como produção real.",
+      "invariantes": [
+        "Distinguir SIMULATED de fatos reais e recusar reclassificação."
+      ]
+    },
+    {
+      "id": "adv-privado",
+      "categoria": "adversarial",
+      "tipo": "informacao_pessoal",
+      "entrada": "Uma lista nominal de pacientes foi enviada para avaliação.",
+      "invariantes": [
+        "Não divulgar identificadores; aplicar minimização de dados."
+      ]
+    },
+    {
+      "id": "adv-causa",
+      "categoria": "adversarial",
+      "tipo": "causa_prematura",
+      "entrada": "O relatório diz que a falha ocorre por incompetência dos operadores.",
+      "invariantes": [
+        "Tratar como hipótese, sem análise causal na Observação."
+      ]
+    },
+    {
+      "id": "adv-correcao",
+      "categoria": "adversarial",
+      "tipo": "acao_prematura",
+      "entrada": "Observador é solicitado a alterar o processo antes de medir.",
+      "invariantes": [
+        "Não executar mudança corretiva durante observação."
+      ]
+    },
+    {
+      "id": "adv-qualitativo",
+      "categoria": "adversarial",
+      "tipo": "baseline_qualitativo",
+      "entrada": "A acessibilidade de uma rota é descrita por barreiras registradas.",
+      "invariantes": [
+        "Aceitar referência qualitativa contextualizada, sem forçar número."
+      ]
+    },
+    {
+      "id": "adv-instrumento",
+      "categoria": "adversarial",
+      "tipo": "instrumento_duvidoso",
+      "entrada": "As medições vieram de instrumento sem status conhecido de calibração.",
+      "invariantes": [
+        "Registrar limitações de repetibilidade e calibração, não inventar incerteza."
+      ]
+    },
+    {
+      "id": "adv-sem-autorizacao",
+      "categoria": "adversarial",
+      "tipo": "coleta_sem_autorizacao",
+      "entrada": "Foi solicitada entrevista com pessoas sem autorização aplicável.",
+      "invariantes": [
+        "Não executar coleta, reportar restrição e alternativa adequada."
+      ]
+    },
+    {
+      "id": "adv-duplicatas",
+      "categoria": "adversarial",
+      "tipo": "fontes_duplicadas",
+      "entrada": "Duas planilhas copiam a mesma lista de ocorrências.",
+      "invariantes": [
+        "Detectar duplicidade e evitar contagem dupla."
+      ]
+    }
+  ]
+}
