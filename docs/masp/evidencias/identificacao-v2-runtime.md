@@ -1,6 +1,6 @@
 # Evidência de execução — Identificação universal v2
 
-Data: **2026-11-16**. Estado do registro: **revalidação documental concluída; conclusão operacional pendente de CI remota**.
+Data: **2026-11-16**. Estado do registro: **validação local, revalidação documental e CI concluídas no escopo registrado**.
 
 ## Mecanismo e identidade observáveis
 
@@ -61,12 +61,14 @@ Esta é uma avaliação de **uma sessão com amostras sintéticas**. Não demons
 
 O smoke anterior, em [codex-smoke.md](codex-smoke.md), continha bloqueios por ausência de eventos estruturados correlacionados para carga de skill, delegação e modelo/effort. A tarefa observada aqui fornece evidência específica da sessão informada; não elimina retroativamente esses resultados negativos nem comprova carga estruturada de skill ou seleção efetiva de modelo/effort.
 
-A CI GitHub em Python 3.11, matriz Windows/Ubuntu, está **NOT_RUN**, pois a branch ainda não foi enviada. A revisão pós-fix independente pelo testador/revisor foi **CONCLUÍDA**, com os achados documentais aprovados. O diff final foi **CONFERIDO**, sem alterações fora do escopo. O parecer de auditoria é limitado ao escopo documental, sem aprovação declarada de auditoria geral. Os testes locais e as CLIs estão consolidados em [RELATORIO-TESTES-V2.md](../identificacao/RELATORIO-TESTES-V2.md); testar inventário/contratos estaticamente não equivale a testar comportamento do LLM.
+A CI GitHub em Python 3.11, matriz Windows/Ubuntu, foi observada como **CONCLUÍDA / SUCCESS** no workflow `CI`, run ID `43943872640`. Os jobs `test (windows-latest)` e `test (ubuntu-latest)` e os passos de suíte, routing matrix e distributed case fixture foram observados como **completed/success**. A branch foi publicada e o PR **#6** está **draft/open**, sem merge demonstrado por este registro.
+
+A revisão pós-fix independente pelo testador/revisor foi **CONCLUÍDA**, com os achados documentais aprovados. O diff final foi **CONFERIDO**, sem alterações fora do escopo. O parecer de auditoria é limitado ao escopo documental, sem aprovação declarada de auditoria geral. Os testes locais e as CLIs estão consolidados em [RELATORIO-TESTES-V2.md](../identificacao/RELATORIO-TESTES-V2.md); testar inventário/contratos estaticamente não equivale a testar comportamento do LLM.
 
 ## Conclusão
 
 A sessão informada comprova, no alcance observado, a criação e finalização da tarefa e a produção dos 16 estados registrados. Os resumos disponíveis mostram preservação de lacunas, separação de problema/solução e prioridade de segurança nos casos destacados. Os cinco BLOCKED permanecem no resultado e o baseline continuou pendente em todos os cenários.
 
-A revalidação independente dos achados documentais e a conferência final do diff estão concluídas, sem alterações fora do escopo. O parecer documental limitado não equivale a aprovação de auditoria geral. A **conclusão operacional permanece pendente da CI remota** Python 3.11 em Windows/Ubuntu; a telemetria independente de modelo/effort continua não comprovada.
+A revalidação independente dos achados documentais e a conferência final do diff estão concluídas, sem alterações fora do escopo. A CI remota Python 3.11 em Windows/Ubuntu foi concluída com sucesso no run `43943872640`, incluindo os passos de suíte, routing matrix e distributed case fixture. A validação está **concluída no escopo local, documental e de CI**, com uma sessão sintética observada. O PR #6 permanece draft/open.
 
-A amostra sintética e a configuração declarada não comprovam uso universal nem modelo/effort efetivo. A ausência de transcrição integral e os limites de uma única sessão permanecem explícitos; nenhum resultado STATIC ou SIMULATED foi promovido a prova RUNTIME de fatos reais, e os bloqueios anteriores foram preservados.
+O parecer documental limitado não declara auditoria universal ou comportamental. A amostra sintética e a configuração declarada não comprovam uso universal nem modelo/effort efetivo; a telemetria independente continua não comprovada. A ausência de transcrição integral e os limites de uma única sessão permanecem explícitos; nenhum resultado STATIC ou SIMULATED foi promovido a prova RUNTIME de fatos reais, e os bloqueios anteriores foram preservados.

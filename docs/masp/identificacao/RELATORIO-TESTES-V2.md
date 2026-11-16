@@ -1,6 +1,6 @@
 # Relatório de testes — Identificação universal v2
 
-Data do registro: 2026-11-16. Estado: **revalidação documental concluída; conclusão operacional pendente de CI remota**.
+Data do registro: 2026-11-16. Estado: **validação local, revalidação documental e CI concluídas no escopo registrado**.
 
 ## Escopo e rastreabilidade
 
@@ -44,11 +44,13 @@ A execução do agente constitui evidência **RUNTIME** de uma sessão. As 16 en
 
 | Verificação | Estado | Limite |
 | --- | --- | --- |
-| GitHub Actions, Python 3.11, matriz Windows/Ubuntu | **NOT_RUN** | Branch ainda não enviada; execução local em Python 3.14.7 não comprova a matriz |
+| GitHub Actions, Python 3.11, matriz Windows/Ubuntu | **CONCLUÍDA / SUCCESS** | Workflow `CI`, run ID `43943872640`; jobs `test (windows-latest)` e `test (ubuntu-latest)` completed/success |
 | Revisão pós-fix independente pelo testador/revisor | **CONCLUÍDA** | Achados documentais aprovados no escopo revalidado |
 | Revisão final de `git diff` | **CONCLUÍDA** | Diff conferido, sem alterações fora do escopo |
 | Parecer de auditoria documental | **LIMITADO AO ESCOPO DOCUMENTAL** | Revalidação dos achados concluída; não equivale a aprovação de auditoria geral ou conclusão operacional |
 | Telemetria independente de modelo/effort | **NÃO COMPROVADA** | Configuração declarada não comprova seleção efetiva |
+
+Na execução GitHub Actions `43943872640`, os passos de suíte, routing matrix e distributed case fixture foram observados como **completed/success** nos dois jobs. A branch foi publicada e o PR **#6** está **draft/open**. O sucesso da CI valida essa execução no escopo dos testes e validadores; o PR continua aberto em rascunho, sem merge demonstrado por este registro.
 
 ## Revisão metodológica e atribuições
 
@@ -70,6 +72,6 @@ As classes de evidência, os cinco critérios do gate, os modos rápido/profundo
 
 Os resultados locais informados sustentam a consistência estrutural dos contratos avaliados após os ajustes: 6 testes focais e 123 testes da suíte passaram; as CLIs encerraram com exit 0 no escopo declarado. A sessão observada do identificador mostrou decisões coerentes nos 16 cenários sintéticos informados, preservando os cinco bloqueios, lacunas de baseline e ausência de causalidade demonstrada.
 
-A revisão pós-fix independente foi concluída com os achados documentais aprovados, e o diff final foi conferido sem alterações fora do escopo. Esse parecer é limitado à auditoria documental; não declara aprovação de auditoria geral. A **conclusão operacional permanece pendente da CI remota** em Python 3.11, Windows/Ubuntu, ainda NOT_RUN. A telemetria independente do modelo/effort permanece não comprovada.
+A revisão pós-fix independente foi concluída com os achados documentais aprovados, e o diff final foi conferido sem alterações fora do escopo. A CI remota em Python 3.11 também foi concluída com sucesso no workflow `CI`, run `43943872640`, nos jobs Windows e Ubuntu e respectivos passos de suíte, routing matrix e distributed case fixture. Assim, a validação local, documental e de CI está **concluída nesse escopo**. A branch foi publicada e o PR #6 permanece draft/open.
 
-Persistem os limites de uma única sessão sintética, ausência de transcrição integral no registro e licença da cópia drsamonline não confirmada. Evidência STATIC ou SIMULATED não foi elevada a comprovação RUNTIME de comportamento real ou universal, e os resultados negativos anteriores foram preservados.
+Esse parecer é limitado à validação local, CI e uma sessão sintética observada; não declara auditoria universal ou comportamental. Persistem a telemetria independente do modelo/effort não comprovada, os limites de uma única sessão sintética, a ausência de transcrição integral no registro e a licença da cópia drsamonline não confirmada. Evidência STATIC ou SIMULATED não foi elevada a comprovação RUNTIME de comportamento real ou universal, e os resultados negativos anteriores foram preservados.
