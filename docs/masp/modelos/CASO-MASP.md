@@ -67,6 +67,23 @@ Ficha Markdown complementar ao manifesto, sem novos campos no JSON ou ledger. Si
 - Contradições e pendências para Observação:
 - Gate `PASS` ou `BLOCKED`, justificativa e desbloqueio se aplicável:
 
+### Ficha de Observação universal v2
+
+Esta ficha complementa a Identificação v2 sem alterar o manifesto nem o ledger. Siga [a especificação](../observacao/ESPECIFICACAO-V2.md) e o [modelo de coleta](../observacao/MODELO-COLETA-EVIDENCIAS.md).
+
+- Objetivo, perguntas, objeto, contexto, ambiente, local, período e modo rápido/aprofundado:
+- Fontes atribuídas (ID, tipo, origem, data e acesso), classe `FATO_VERIFICADO`/`RELATO_NAO_VERIFICADO`/`HIPOTESE`/`DESCONHECIDO` e limitações:
+- Método de coleta, justificativa, condições e autorização quando aplicável:
+- Condição atual e registros descritivos, com contradições preservadas:
+- Baseline **quantitativo**, **qualitativo** ou **indisponível** (razão e coleta necessária):
+- Qualidade das fontes, incerteza e comparabilidade:
+- Resultado **reproduzível** ou limitação **não reproduzível** / **não tentada**:
+- Evidências efetivamente consultadas e classificação `STATIC`/`SIMULATED`/`RUNTIME`:
+- Pendências e perguntas para Módulo 03, sem concluir causa raiz:
+- Quatro critérios `baseline`, `environment`, `collection_method`, `reproducible_result_or_limitation` e justificativa de `PASS`/`FAIL`/`BLOCKED`:
+
+O registro opcional em JSON pode ser validado por `python -m masp_skill.cli validate-observation --record .tmp/observacao.json --root .`. Este comando **não comprova observação de campo nem aprova o gate**.
+
 ### Ledger resumido dos gates
 
 | Fase | Estado | Evidência/IDs | Revisão independente | Próxima decisão |
