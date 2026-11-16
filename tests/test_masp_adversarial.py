@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from masp_skill.case import create_case, transition_case, validate_case
+from masp_skill.case import _event_hash, create_case, transition_case, validate_case
 from masp_skill.evidence import make_evidence
 from masp_skill.routing import load_routing, validate_routing
 
@@ -32,7 +32,8 @@ def test_malformed_case_state_fields_are_reported_without_exception(field, value
     case = create_case("MASP-STATE-TYPES", ROUTING)
     case[field] = value
     errors = validate_case(case, ROUTING, ROOT)
-    assert errors
+    expected = "initial_state" if field == "initial_state" else "case summary"
+    assert any(expected in error for error in errors)
 
 
 @pytest.mark.parametrize("field,value", [
@@ -49,8 +50,13 @@ def test_malformed_event_state_fields_are_reported_without_exception(field, valu
         "masp-coordenador", [proof], ROUTING, root=tmp_path,
     )
     case["ledger"][0][field] = value
+    # Recalculate the event hash: detect the malformed value itself rather
+    # than passing solely because the original hash became stale.
+    case["ledger"][0]["event_hash"] = _event_hash(case["ledger"][0])
     errors = validate_case(case, ROUTING, tmp_path)
-    assert errors
+    expected = "illegal state transition" if field == "new_state" else "references unknown phase"
+    assert any(expected in issue for issue in errors)
+    assert not any("hash mismatch" in issue for issue in errors)
 
 
 @pytest.mark.parametrize("value", [
