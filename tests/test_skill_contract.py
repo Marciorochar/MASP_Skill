@@ -9,7 +9,7 @@ from masp_skill.routing import load_routing
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills" / "masp" / "SKILL.md"
+SKILL = ROOT / ".agents" / "skills" / "masp" / "SKILL.md"
 REFERENCE = ROOT / "skills" / "masp" / "references" / "routing-guide.md"
 ROUTING = ROOT / "docs" / "masp" / "masp-routing.toml"
 
