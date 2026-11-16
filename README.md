@@ -34,7 +34,7 @@ Os estados do caso são `PENDING`, `IN_PROGRESS`, `PASS`, `FAIL`, `BLOCKED` e `N
 
 - [`docs/masp/masp-routing.toml`](docs/masp/masp-routing.toml): oito fases, dez papéis e políticas transversais.
 - [`.codex/`](.codex/): registro de configuração local e dez contratos de agentes.
-- [`skills/masp/SKILL.md`](skills/masp/SKILL.md): instruções da skill local.
+- [`.agents/skills/masp/SKILL.md`](.agents/skills/masp/SKILL.md): instruções da skill local.
 - [`src/masp_skill/`](src/masp_skill/): validação, ledger, evidências e CLI.
 - [`docs/masp/RELATORIO-IMPLEMENTACAO.md`](docs/masp/RELATORIO-IMPLEMENTACAO.md): inventário, decisões, testes, riscos e limites observados.
 - [`docs/masp/exemplos/MASP-CONFIG-SMOKE.md`](docs/masp/exemplos/MASP-CONFIG-SMOKE.md): leitura guiada da evidência atual do smoke.
