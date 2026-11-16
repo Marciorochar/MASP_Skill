@@ -11,6 +11,9 @@ Use the eight MASP phases to move from a defined problem to a documented conclus
 
 ## When to use
 
+The coordinator uses `superpowers:dispatching-parallel-agents` for independent read-only investigation and `superpowers:subagent-driven-development` only for approved implementation plans. Confirm that each skill is available before attempting to invoke it.
+
+
 - A defect, operational problem, or recurring failure needs baseline, causal analysis, corrective action, and verification.
 - Multiple roles, independent investigations, approvals, or evidence records must be coordinated.
 - A project already defines another incident or quality process: follow its `AGENTS.md` and use MASP only where compatible.
@@ -36,7 +39,7 @@ Use only `PENDING`, `IN_PROGRESS`, `PASS`, `FAIL`, `BLOCKED`, and `NOT_RUN`. `PA
 
 ## Quick reference: local CLI
 
-Run from the repository root with Python 3.14 and the project installed or importable:
+Run from the repository root with Python 3.11+ and the project installed or importable:
 
 ```powershell
 python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC
