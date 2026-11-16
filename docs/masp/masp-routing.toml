@@ -1,0 +1,172 @@
+schema_version = 1
+classification = "STATIC"
+phase_order = ["Identificação", "Observação", "Análise", "Plano de ação", "Ação", "Verificação", "Padronização", "Conclusão"]
+
+[roles.masp-coordenador]
+model = "gpt-6.1-sol"
+effort = "medium"
+responsibility = "Controlar gates, delegação, custo, contexto e consolidação."
+
+[roles.masp-identificador]
+model = "gpt-6-luna"
+effort = "low"
+responsibility = "Delimitar problema, impacto, escopo e métrica."
+
+[roles.masp-observador]
+model = "gpt-6-luna"
+effort = "medium"
+responsibility = "Coletar baseline, reprodução e evidências."
+
+[roles.masp-analista]
+model = "gpt-6.1-sol"
+effort = "medium"
+responsibility = "Avaliar hipóteses e estabelecer causa raiz."
+
+[roles.masp-planejador]
+model = "gpt-6.1-sol"
+effort = "medium"
+responsibility = "Produzir plano, riscos, rollback e critérios de teste."
+
+[roles.masp-executor]
+model = "gpt-6.1-terra"
+effort = "medium"
+responsibility = "Implementar mudanças aprovadas e delimitadas."
+
+[roles.masp-testador]
+model = "gpt-6-luna"
+effort = "low"
+responsibility = "Verificar mudanças independentemente do executor."
+
+[roles.masp-padronizador]
+model = "gpt-6.1-terra"
+effort = "medium"
+responsibility = "Criar controles, regressões e documentação reutilizável."
+
+[roles.masp-relator]
+model = "gpt-6.1-sol"
+effort = "medium"
+responsibility = "Consolidar resultados, limitações e pendências."
+
+[roles.masp-especialista-critico]
+model = "gpt-6-astra"
+effort = "medium"
+responsibility = "Auditar problemas críticos sem implementar correções."
+
+[[phases]]
+id = "identificacao"
+name = "Identificação"
+role = "masp-identificador"
+gate = "Problema observável, impacto, escopo, exclusões e métrica de sucesso registrados."
+returns = ["Conclusão"]
+[[phases.skills]]
+name = "superpowers:brainstorming"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/brainstorming/SKILL.md"
+
+[[phases]]
+id = "observacao"
+name = "Observação"
+role = "masp-observador"
+gate = "Baseline, ambiente, método e resultado reproduzível ou limitação documentada."
+returns = ["Identificação"]
+[[phases.skills]]
+name = "superpowers:systematic-debugging"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/systematic-debugging/SKILL.md"
+[[phases.skills]]
+name = "ecc:repo-scan"
+path = "C:/Users/marci/.codex/plugins/cache/ecc/ecc/2.2.3/skills/repo-scan/SKILL.md"
+required = false
+
+[[phases]]
+id = "analise"
+name = "Análise"
+role = "masp-analista"
+gate = "Hipóteses avaliadas e causa raiz sustentada ou inconclusão explicitada."
+returns = ["Observação"]
+[[phases.skills]]
+name = "superpowers:systematic-debugging"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/systematic-debugging/SKILL.md"
+
+[[phases]]
+id = "plano-de-acao"
+name = "Plano de ação"
+role = "masp-planejador"
+gate = "Tarefas, responsáveis, escopo, riscos, rollback, testes e aprovação humana registrados."
+returns = ["Análise"]
+[[phases.skills]]
+name = "superpowers:writing-plans"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/writing-plans/SKILL.md"
+
+[[phases]]
+id = "acao"
+name = "Ação"
+role = "masp-executor"
+gate = "Diff, arquivos delimitados, comandos e resultados registrados; executor não aprova a própria ação."
+returns = ["Plano de ação"]
+[[phases.skills]]
+name = "superpowers:using-git-worktrees"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/using-git-worktrees/SKILL.md"
+[[phases.skills]]
+name = "superpowers:test-driven-development"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/test-driven-development/SKILL.md"
+[[phases.skills]]
+name = "superpowers:subagent-driven-development"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/subagent-driven-development/SKILL.md"
+required = false
+
+[[phases]]
+id = "verificacao"
+name = "Verificação"
+role = "masp-testador"
+gate = "Verificação independente, comparação com baseline, testes e regressões pertinentes."
+returns = ["Ação", "Análise"]
+[[phases.skills]]
+name = "superpowers:verification-before-completion"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/verification-before-completion/SKILL.md"
+[[phases.skills]]
+name = "superpowers:requesting-code-review"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/requesting-code-review/SKILL.md"
+
+[[phases]]
+id = "padronizacao"
+name = "Padronização"
+role = "masp-padronizador"
+gate = "Controle preventivo com proprietário, acionamento e regressão correspondente documentados."
+returns = ["Verificação"]
+[[phases.skills]]
+name = "superpowers:writing-skills"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/writing-skills/SKILL.md"
+required = false
+
+[[phases]]
+id = "conclusao"
+name = "Conclusão"
+role = "masp-relator"
+gate = "Ledger, resultados, limitações, riscos residuais, pendências e parecer consolidados."
+returns = ["Verificação", "Padronização"]
+[[phases.skills]]
+name = "superpowers:finishing-a-development-branch"
+path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/finishing-a-development-branch/SKILL.md"
+required = false
+
+[policies.parallelism]
+max_agents = 3
+effective_runtime_limit_applies = true
+same_write_file = "reject"
+
+[policies.unavailable_model]
+state = "BLOCKED"
+automatic_fallback = false
+requires_human_approval_for_substitution = true
+
+[policies.audit]
+independent = true
+high_risk_requires_astra = true
+astra_trigger_is_automatic_for_first_test_failure = false
+
+[policies.delegation]
+coordinator_only = true
+children_may_spawn = false
+executor_may_self_approve = false
+
+[policies.states]
+values = ["PENDING", "IN_PROGRESS", "PASS", "FAIL", "BLOCKED", "NOT_RUN"]
