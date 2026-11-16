@@ -4,6 +4,10 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
 import tempfile
 from contextlib import contextmanager
 
@@ -75,6 +79,100 @@ def _write_json_atomic(path: Path, value) -> None:
             temporary.unlink()
 
 
+def parse_codex_smoke_output(text: str) -> dict[str, str | None]:
+    """Extract observed model and effort fields from Codex diagnostic output."""
+    model_match = re.search(r"(?im)^\s*(?:model|model_id)\s*[:=]\s*([\w.-]+)\s*$", text)
+    effort_match = re.search(r"(?im)^\s*(?:reasoning[ _]effort|effort)\s*[:=]\s*(low|medium|high)\s*$", text)
+    return {
+        "model": model_match.group(1) if model_match else None,
+        "effort": effort_match.group(1) if effort_match else None,
+    }
+
+
+def validate_codex_smoke_report(report: dict) -> list[str]:
+    """Reject runtime claims that are not backed by captured process evidence."""
+    errors: list[str] = []
+    if report.get("classification") == "RUNTIME":
+        commands = report.get("commands")
+        if not isinstance(commands, list) or not commands:
+            return ["RUNTIME requires at least one recorded command"]
+        for index, item in enumerate(commands):
+            if not isinstance(item, dict):
+                errors.append(f"command {index} is not an object")
+                continue
+            for key in ("command", "exit_code", "stdout", "stderr"):
+                if key not in item or item[key] is None:
+                    errors.append(f"command {index} is missing {key}")
+    expected = report.get("expected_model")
+    observed = report.get("observed_model")
+    if expected and observed and expected != observed:
+        errors.append(f"model mismatch: expected {expected}, observed {observed}")
+    return errors
+
+
+def run_codex_smoke(root: Path, output_dir: Path) -> dict:
+    """Collect low-impact CLI evidence; never invokes agents or changes external state."""
+    root = Path(root).resolve()
+    output_dir = _within_root(Path(output_dir), root)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    codex = shutil.which("codex")
+    report = {
+        "classification": "NOT_RUN",
+        "version": None,
+        "commands": [],
+        "checks": [],
+        "expected_model": None,
+        "observed_model": None,
+        "limitations": [],
+    }
+    if not codex:
+        report["limitations"].append("Codex CLI executable was not found on PATH")
+        report["checks"].append({"name": "CLI availability", "status": "BLOCKED"})
+    else:
+        for args, name in ((["--version"], "version"), (["--help"], "CLI help")):
+            command = [codex, *args]
+            try:
+                result = subprocess.run(command, cwd=root, capture_output=True, text=True, timeout=30, check=False)
+                item = {"command": command, "exit_code": result.returncode,
+                        "stdout": result.stdout, "stderr": result.stderr}
+                report["commands"].append(item)
+                report["checks"].append({"name": name, "status": "PASS" if result.returncode == 0 else "FAIL"})
+                if name == "version":
+                    report["version"] = (result.stdout or result.stderr).strip()
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                report["checks"].append({"name": name, "status": "BLOCKED", "detail": str(exc)})
+        report["classification"] = "RUNTIME" if report["commands"] else "NOT_RUN"
+    config = root / ".codex" / "config.toml"
+    report["checks"].append({"name": "local config file", "classification": "STATIC",
+                             "status": "PASS" if config.is_file() else "FAIL"})
+    report["checks"].append({"name": "local skill file", "classification": "STATIC",
+                             "status": "PASS" if (root / "skills/masp/SKILL.md").is_file() else "FAIL"})
+    # A real fan-out would incur model calls; it is intentionally not run by this low-impact collector.
+    for role in ("masp-identificador", "masp-observador", "masp-analista", "masp-planejador",
+                 "masp-executor", "masp-testador", "masp-padronizador", "masp-relator"):
+        report["checks"].append({"name": f"delegation {role}", "classification": "RUNTIME",
+                                 "status": "NOT_RUN",
+                                 "reason": "would invoke a model; not included in the low-impact smoke"})
+    report["checks"].append({"name": "local agent discovery", "classification": "RUNTIME",
+                             "status": "NOT_RUN", "reason": "no non-interactive read-only discovery command was confirmed"})
+    report["checks"].append({"name": "active model and effort", "classification": "RUNTIME",
+                             "status": "NOT_RUN", "reason": "requires an agent invocation to observe"})
+    report["limitations"].append("Local config/skill file checks are STATIC and do not prove Codex discovery")
+    report["limitations"].append("Eight-role delegation, local agent discovery, and active model/effort were not invoked; no safe read-only path was confirmed")
+    report["python"] = sys.version.split()[0]
+    errors = validate_codex_smoke_report(report)
+    if errors:
+        raise ValueError("invalid smoke report: " + "; ".join(errors))
+    (output_dir / "codex-smoke.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    lines = ["# Codex smoke evidence", "", f"Classification: **{report['classification']}**", "",
+             f"CLI version: `{report['version'] or 'unavailable'}`", "", "## Checks", ""]
+    lines.extend(f"- {check['name']} ({check.get('classification', 'RUNTIME')}): **{check['status']}**"
+                 + (f" — {check['reason']}" if check.get("reason") else "") for check in report["checks"])
+    lines.extend(["", "## Limitations", "", *[f"- {item}" for item in report["limitations"]], ""])
+    (output_dir / "codex-smoke.md").write_text("\n".join(lines), encoding="utf-8")
+    return report
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="masp-skill")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -108,8 +206,16 @@ def main(argv: list[str] | None = None) -> int:
     validate_case_parser.add_argument("--routing", type=Path, default=Path("docs/masp/masp-routing.toml"))
     validate_case_parser.add_argument("--root", type=Path, default=Path.cwd())
 
+    smoke = commands.add_parser("runtime-smoke", help="collect low-impact Codex CLI smoke evidence")
+    smoke.add_argument("--root", type=Path, default=Path.cwd())
+    smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
+
     args = parser.parse_args(argv)
     try:
+        if args.command == "runtime-smoke":
+            report = run_codex_smoke(args.root, args.output_dir)
+            print(f"{report['classification']}: relatório salvo em {args.output_dir}")
+            return 0
         if args.command == "case-revision":
             print(f"SHA256: {case_revision(args.case.read_bytes())}")
             return 0
