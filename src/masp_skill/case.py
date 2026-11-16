@@ -30,6 +30,8 @@ ALLOWED_TRANSITIONS = {
     "BLOCKED": set(),
     "NOT_RUN": set(),
 }
+ASTRA_MODEL = "gpt-6-astra"
+ASTRA_EFFORT = "medium"
 
 
 def _canonical(value: Any) -> bytes:
@@ -77,6 +79,16 @@ def _role_available(routing: dict[str, Any], phase: dict[str, Any]) -> tuple[boo
     if role.get("available", True) is False or role.get("model_available", True) is False:
         return False, f"BLOCKED: required model {model} for {role_name} is unavailable; no fallback is applied"
     return True, str(model or "")
+
+
+def _astra_contract(routing: dict[str, Any]) -> tuple[bool, str]:
+    role = routing.get("roles", {}).get("masp-especialista-critico", {})
+    model, effort = role.get("model"), role.get("effort")
+    if model != ASTRA_MODEL or effort != ASTRA_EFFORT:
+        return False, f"BLOCKED: Astra routing must declare {ASTRA_MODEL}/{ASTRA_EFFORT}, got {model!r}/{effort!r}"
+    if role.get("available", True) is False or role.get("model_available", True) is False:
+        return False, f"BLOCKED: required Astra model {ASTRA_MODEL} is unavailable; no audit substitution is made"
+    return True, ASTRA_MODEL
 
 
 def create_case(case_id: str, routing: dict[str, Any], *, high_risk: bool = False) -> dict[str, Any]:
@@ -162,13 +174,14 @@ def _gate_errors(
         ):
             errors.append("RUNTIME verification evidence requires command, integer exit_code, and stdout or stderr result")
     if case.get("high_risk") and phase_id in {"verificacao", "conclusao"}:
-        astra = routing.get("roles", {}).get("masp-especialista-critico", {})
-        available = astra.get("available", True) is not False and astra.get("model_available", True) is not False
-        if not available:
-            errors.append("BLOCKED: Astra model gpt-6-astra is unavailable; no audit substitution is made")
+        astra_ok, astra_contract_error = _astra_contract(routing)
+        if not astra_ok:
+            errors.append(astra_contract_error)
+        astra_role = routing.get("roles", {}).get("masp-especialista-critico", {})
         opinions = [item for item in evidence if
             item.get("role") == "masp-especialista-critico"
-            and item.get("model") == "gpt-6-astra"
+            and item.get("model") == astra_role.get("model") == ASTRA_MODEL
+            and item.get("effort") == astra_role.get("effort") == ASTRA_EFFORT
             and item.get("opinion") in {"PASS", "APPROVED"}
             and item.get("classification") == "RUNTIME"
             and isinstance(item.get("command"), str) and item["command"].strip()
@@ -234,9 +247,9 @@ def transition_case(
         if not available:
             raise ValueError(model_or_error)
         if case.get("high_risk") and phase_data.get("id") == "verificacao":
-            critical = routing.get("roles", {}).get("masp-especialista-critico", {})
-            if critical.get("available", True) is False or critical.get("model_available", True) is False:
-                raise ValueError("BLOCKED: required Astra audit model gpt-6-astra unavailable")
+            astra_ok, astra_error = _astra_contract(routing)
+            if not astra_ok:
+                raise ValueError(astra_error)
         if phase_data.get("id") == "acao" and not _plan_approval_recorded(case, case.get("ledger", [])):
             raise ValueError("Action cannot start until the plan gate records a simulated approval")
     if target_state == "PASS":
@@ -320,7 +333,10 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
                 allowed = current_index >= 0 and current_index + 1 < len(names) and names[current_index + 1] == event.get("phase")
             elif state == "FAIL":
                 prior_phase = next((item for item in phases if item.get("name") == phase_name), {})
-                allowed = event.get("phase") in prior_phase.get("returns", []) and event.get("new_state") == "IN_PROGRESS"
+                allowed = (
+                    event.get("phase") in prior_phase.get("returns", [])
+                    and event.get("new_state") in {"IN_PROGRESS", "BLOCKED", "NOT_RUN"}
+                )
             if not allowed:
                 errors.append(f"ledger replay phase order mismatch at event {index}")
         if event.get("new_state") not in ALLOWED_TRANSITIONS.get(state, set()):
@@ -330,6 +346,8 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
         except ValueError:
             phase_data = {}
         event_evidence = event.get("evidence", [])
+        if not isinstance(event_evidence, list) or not event_evidence:
+            errors.append(f"ledger event {index} must contain evidence")
         errors.extend(f"event {index}: {issue}" for issue in validate_evidence(event_evidence, root))
         if event.get("new_state") == "PASS" and phase_data:
             errors.extend(f"event {index}: {issue}" for issue in _gate_errors(case, phase_data, event_evidence, routing, ledger[:index - 1]))
@@ -338,9 +356,9 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
             if not available:
                 errors.append(f"event {index}: {availability_error}")
             if case.get("high_risk") and phase_data.get("id") == "verificacao":
-                critical = routing.get("roles", {}).get("masp-especialista-critico", {})
-                if critical.get("available", True) is False or critical.get("model_available", True) is False:
-                    errors.append(f"event {index}: required Astra audit model gpt-6-astra unavailable")
+                astra_ok, astra_error = _astra_contract(routing)
+                if not astra_ok:
+                    errors.append(f"event {index}: {astra_error}")
             if phase_data.get("id") == "acao" and not _plan_approval_recorded(case, ledger[:index - 1]):
                 errors.append(f"event {index}: action started before plan approval gate")
         state = event.get("new_state") if event.get("new_state") in STATES else state

@@ -84,6 +84,14 @@ def test_only_next_phase_after_pass_and_declared_return_after_fail_are_valid(tmp
         transition_case(case, 'IN_PROGRESS', 'masp-coordenador', [evidence(tmp_path, 'skip.json')], ROUTING, phase='Conclusão', root=tmp_path)
 
 
+@pytest.mark.parametrize('target_state', ['BLOCKED', 'NOT_RUN'])
+def test_replay_accepts_declared_fail_return_ending_in_blocked_or_not_run(tmp_path, target_state):
+    case = move_to_phase(create_case(f'MASP-RETURN-{target_state}', ROUTING), 'Análise', tmp_path)
+    case = transition_case(case, 'FAIL', 'masp-coordenador', [evidence(tmp_path, f'{target_state}-failure.json')], ROUTING, root=tmp_path)
+    case = transition_case(case, target_state, 'masp-coordenador', [evidence(tmp_path, f'{target_state}-return.json')], ROUTING, phase='Observação', root=tmp_path)
+    assert validate_case(case, ROUTING, tmp_path) == []
+
+
 def test_pass_without_evidence_and_missing_gate_criteria_are_rejected(tmp_path):
     case = start(create_case('MASP-NO-EVIDENCE', ROUTING), tmp_path)
     with pytest.raises(ValueError, match='evidence|evidência'):
@@ -111,6 +119,13 @@ def test_phase_origin_and_high_risk_metadata_are_committed_and_replay_is_require
         event['event_hash'] = _event_hash(event)
         previous = event['event_hash']
     assert any('replay' in error.lower() or 'phase' in error.lower() for error in validate_case(edited, ROUTING, tmp_path))
+
+
+def test_replay_rejects_transition_with_empty_evidence_even_if_event_hash_is_recomputed(tmp_path):
+    case = start(create_case('MASP-EMPTY-REPLAY', ROUTING), tmp_path)
+    case['ledger'][0]['evidence'] = []
+    case['ledger'][0]['event_hash'] = _event_hash(case['ledger'][0])
+    assert any('evidence' in error.lower() or 'evidência' in error.lower() for error in validate_case(case, ROUTING, tmp_path))
 
 
 def test_plan_gate_requires_a_simulated_human_approval_record(tmp_path):
@@ -155,9 +170,15 @@ def test_high_risk_verification_requires_a_reported_astra_runtime_opinion_and_av
     case = move_to_phase(create_case('MASP-ASTRA', ROUTING, high_risk=True), 'Verificação', tmp_path)
     with pytest.raises(ValueError, match='Astra|astra|audit|auditoria'):
         pass_gate(case, tmp_path, classification='RUNTIME')
-    astra = evidence(tmp_path, 'astra.json', classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', opinion='PASS')
+    astra = evidence(tmp_path, 'astra.json', classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='medium', opinion='PASS')
     case = transition_case(case, 'PASS', 'masp-coordenador', [astra], ROUTING, root=tmp_path)
     assert case['state'] == 'PASS'
+    with pytest.raises(ValueError, match='Astra|astra|effort|esforço'):
+        pass_gate(move_to_phase(create_case('MASP-ASTRA-EFFORT', ROUTING, high_risk=True), 'Verificação', tmp_path), tmp_path, classification='RUNTIME', role='masp-especialista-critico', model='gpt-6-astra', effort='high', opinion='PASS')
+    bad_routing = deepcopy(ROUTING)
+    bad_routing['roles']['masp-especialista-critico']['model'] = 'gpt-6.1-sol'
+    with pytest.raises(ValueError, match='Astra|astra|model|modelo'):
+        move_to_phase(create_case('MASP-ASTRA-MATRIX', bad_routing, high_risk=True), 'Verificação', tmp_path, bad_routing)
     unavailable = deepcopy(ROUTING)
     unavailable['roles']['masp-especialista-critico']['available'] = False
     with pytest.raises(ValueError, match='Astra|astra|model|modelo|BLOCKED'):
@@ -228,3 +249,11 @@ def test_cli_new_case_normalizes_output_under_root_and_refuses_escape_or_overwri
     capsys.readouterr()
     assert main(['new-case', '--id', 'MASP-NEW', '--output', 'cases/new.json', '--root', str(tmp_path), '--routing', str(MATRIX)]) == 1
     assert json.loads(target.read_text(encoding='utf-8'))['case_id'] == 'MASP-NEW'
+
+
+def test_case_revision_works_without_routing_file_in_current_directory(tmp_path, monkeypatch, capsys):
+    target = tmp_path / 'case.json'
+    target.write_bytes(b'{"manifest": "not loaded by revision command"}')
+    monkeypatch.chdir(tmp_path)
+    assert main(['case-revision', '--case', str(target)]) == 0
+    assert capsys.readouterr().out.strip() == f'SHA256: {case_revision(target.read_bytes())}'

@@ -110,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        if args.command == "case-revision":
+            print(f"SHA256: {case_revision(args.case.read_bytes())}")
+            return 0
         routing = load_routing(args.routing)
         if args.command == "validate-routing":
             errors = validate_routing(routing)
@@ -151,9 +154,6 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 _write_json_atomic(case_path, result)
             print(f"SIMULATED: {result['current_phase']} -> {result['state']}; role and approval labels are not authenticated")
-            return 0
-        if args.command == "case-revision":
-            print(f"SHA256: {case_revision(args.case.read_bytes())}")
             return 0
         case_path = _within_root(args.case, args.root)
         case = _read_json(case_path)
