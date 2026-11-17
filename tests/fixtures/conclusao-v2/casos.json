@@ -1,0 +1,212 @@
+{
+  "classification": "SIMULATED",
+  "domains": [
+    {
+      "id": "domain-industria",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in industria"
+    },
+    {
+      "id": "domain-logistica",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in logistica"
+    },
+    {
+      "id": "domain-saude",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in saude"
+    },
+    {
+      "id": "domain-administracao",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in administracao"
+    },
+    {
+      "id": "domain-meio-ambiente",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in meio-ambiente"
+    },
+    {
+      "id": "domain-tecnologia",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in tecnologia"
+    },
+    {
+      "id": "domain-educacao",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in educacao"
+    },
+    {
+      "id": "domain-servicos",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in servicos"
+    },
+    {
+      "id": "domain-cotidiano",
+      "classification": "SIMULATED",
+      "invariant": "Conclude within evidence in cotidiano"
+    }
+  ],
+  "adversarial": [
+    {
+      "id": "adv-ledger_incomplete",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify ledger_incomplete"
+    },
+    {
+      "id": "adv-hash_mismatch",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify hash_mismatch"
+    },
+    {
+      "id": "adv-prior_gate_blocked",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify prior_gate_blocked"
+    },
+    {
+      "id": "adv-simulated_as_real",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify simulated_as_real"
+    },
+    {
+      "id": "adv-not_run_as_pass",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify not_run_as_pass"
+    },
+    {
+      "id": "adv-objective_failure_hidden",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify objective_failure_hidden"
+    },
+    {
+      "id": "adv-negative_result_removed",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify negative_result_removed"
+    },
+    {
+      "id": "adv-baseline_missing",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify baseline_missing"
+    },
+    {
+      "id": "adv-invalid_math",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify invalid_math"
+    },
+    {
+      "id": "adv-false_causality",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify false_causality"
+    },
+    {
+      "id": "adv-efficacy_unverified",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify efficacy_unverified"
+    },
+    {
+      "id": "adv-standard_not_implemented",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify standard_not_implemented"
+    },
+    {
+      "id": "adv-sustainability_not_demonstrated",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify sustainability_not_demonstrated"
+    },
+    {
+      "id": "adv-residual_risk_missing",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify residual_risk_missing"
+    },
+    {
+      "id": "adv-critical_pending_hidden",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify critical_pending_hidden"
+    },
+    {
+      "id": "adv-missing_owner",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify missing_owner"
+    },
+    {
+      "id": "adv-invented_deadline",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify invented_deadline"
+    },
+    {
+      "id": "adv-unsupported_opinion",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify unsupported_opinion"
+    },
+    {
+      "id": "adv-duplicate_evidence",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify duplicate_evidence"
+    },
+    {
+      "id": "adv-contradictory_source",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify contradictory_source"
+    },
+    {
+      "id": "adv-fake_human_approval",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify fake_human_approval"
+    },
+    {
+      "id": "adv-production_promotion_assumed",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify production_promotion_assumed"
+    },
+    {
+      "id": "adv-admin_as_resolved",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify admin_as_resolved"
+    },
+    {
+      "id": "adv-hash_as_truth",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify hash_as_truth"
+    },
+    {
+      "id": "adv-report_vs_ledger",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify report_vs_ledger"
+    },
+    {
+      "id": "adv-history_edited",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify history_edited"
+    },
+    {
+      "id": "adv-decision_without_authority",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify decision_without_authority"
+    },
+    {
+      "id": "adv-regression_omitted",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify regression_omitted"
+    },
+    {
+      "id": "adv-unsupported_lessons",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify unsupported_lessons"
+    },
+    {
+      "id": "adv-critical_without_audit",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify critical_without_audit"
+    },
+    {
+      "id": "adv-illegal_return",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify illegal_return"
+    },
+    {
+      "id": "adv-partial_claimed_full",
+      "classification": "SIMULATED",
+      "invariant": "Reject or qualify partial_claimed_full"
+    }
+  ]
+}

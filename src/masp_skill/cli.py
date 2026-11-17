@@ -20,6 +20,7 @@ from .action_plan import validate_action_plan_record
 from .action_execution import validate_action_execution_record
 from .verification import validate_verification_record
 from .standardization import validate_standardization_record
+from .conclusion import validate_conclusion_record
 
 
 def _read_json(path: Path):
@@ -580,6 +581,10 @@ def main(argv: list[str] | None = None) -> int:
     standardization.add_argument("--record", type=Path, required=True)
     standardization.add_argument("--root", type=Path, default=Path.cwd())
 
+    conclusion = commands.add_parser("validate-conclusion", help="check universal M08 report (STATIC only)")
+    conclusion.add_argument("--record", type=Path, required=True)
+    conclusion.add_argument("--root", type=Path, default=Path.cwd())
+
     smoke = commands.add_parser("runtime-smoke", help="collect low-impact Codex CLI smoke evidence")
     smoke.add_argument("--root", type=Path, default=Path.cwd())
     smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
@@ -588,6 +593,16 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        if args.command == "validate-conclusion":
+            record_path = _within_root(args.record, args.root)
+            issues = validate_conclusion_record(_read_json(record_path))
+            if issues:
+                print(f"STATIC: {len(issues)} structural conclusion record error(s)")
+                for issue in issues:
+                    print(f"- {issue}")
+                return 1
+            print("STATIC: conclusion report structurally valid; no actual closure, efficacy, audit or Gate 08 PASS authenticated")
+            return 0
         if args.command == "validate-standardization":
             record_path = _within_root(args.record, args.root)
             issues = validate_standardization_record(_read_json(record_path))

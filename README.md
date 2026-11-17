@@ -184,6 +184,16 @@ python -m masp_skill.cli validate-standardization --record .tmp/padrao.json --ro
 
 O comando valida somente estrutura `STATIC` e não autentica Verificação, assinatura, treinamento, implantação, acompanhamento, riscos operacionais ou Gate 07. Consultar [modelo](docs/masp/padronizacao/MODELO-PADRAO.md) e [plano de controle](docs/masp/padronizacao/PLANO-CONTROLE.md).
 
+## Conclusão Universal v2 — auditoria e encerramento rastreável
+
+O [Módulo 08](docs/masp/conclusao/ESPECIFICACAO-V2.md) reúne os oito módulos, verifica resultados frente às metas, registra riscos residuais, pendências e lições aprendidas, e distingue resolução de encerramento administrativo. Não apaga resultados negativos, não inventa aprovações nem altera o histórico MASP para obter PASS.
+
+```powershell
+python -m masp_skill.cli validate-conclusion --record .tmp/conclusao.json --root .
+```
+
+Validação apenas **STATIC**, sem autenticar identidade, auditoria, eficácia, decisão administrativa ou Gate 08. Use o [modelo de relatório](docs/masp/conclusao/MODELO-RELATORIO-FINAL.md) e a [matriz de riscos e pendências](docs/masp/conclusao/MATRIZ-RISCOS-PENDENCIAS.md). A conclusão do ledger SIMULATED depende dos gates anteriores PASS; arquivamento externo com ressalvas não se confunde com problema resolvido.
+
 ## O que significam os resultados?
 
 | Classificação | Significado |
