@@ -164,6 +164,16 @@ python -m masp_skill.cli validate-action-execution --record .tmp/acao.json --roo
 
 Esse comando confere **apenas estrutura STATIC**: não executa intervenções, não autentica aprovação, resultados operacionais, agentes ou Gate 05. Consultar o [modelo de execução](docs/masp/acao/MODELO-EXECUCAO.md) para documentação humana.
 
+## Verificação Universal v2 — eficácia e regressões
+
+O [Módulo 06](docs/masp/verificacao/ESPECIFICACAO-V2.md) compara baseline com evidências posteriores (qualitativas ou quantitativas), distingue execução de eficácia e exige revisão independente. Verificações não digitais podem usar inspeção ou avaliação documental realizada, sem inventar comandos. Comandos de software com saída não zero continuam impedindo aprovação automática.
+
+```powershell
+python -m masp_skill.cli validate-verification --record .tmp/verificacao.json --root .
+```
+
+O validador é **STATIC**, não mede eficácia nem autentica medição, execução ou revisor. A alteração estreita em `case.py` permite a declaração de observação realizada no ledger **SIMULATED**, sem autenticar resultados; casos críticos mantêm os requisitos de auditoria.
+
 ## O que significam os resultados?
 
 | Classificação | Significado |
