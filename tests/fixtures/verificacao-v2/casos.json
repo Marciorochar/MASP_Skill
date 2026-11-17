@@ -1,0 +1,202 @@
+{
+  "classification": "SIMULATED",
+  "domains": [
+    {
+      "id": "domain-industria",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for industria"
+    },
+    {
+      "id": "domain-logistica",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for logistica"
+    },
+    {
+      "id": "domain-saude",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for saude"
+    },
+    {
+      "id": "domain-administracao",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for administracao"
+    },
+    {
+      "id": "domain-meio-ambiente",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for meio-ambiente"
+    },
+    {
+      "id": "domain-tecnologia",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for tecnologia"
+    },
+    {
+      "id": "domain-educacao",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for educacao"
+    },
+    {
+      "id": "domain-servicos",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for servicos"
+    },
+    {
+      "id": "domain-cotidiano",
+      "classification": "SIMULATED",
+      "invariant": "Record effect only in measured scope for cotidiano"
+    }
+  ],
+  "adversarial": [
+    {
+      "id": "adv-missing_baseline",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify missing_baseline without fabricating result"
+    },
+    {
+      "id": "adv-invalid_unit",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify invalid_unit without fabricating result"
+    },
+    {
+      "id": "adv-incompatible_period",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify incompatible_period without fabricating result"
+    },
+    {
+      "id": "adv-method_mismatch",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify method_mismatch without fabricating result"
+    },
+    {
+      "id": "adv-division_by_zero",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify division_by_zero without fabricating result"
+    },
+    {
+      "id": "adv-no_after",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify no_after without fabricating result"
+    },
+    {
+      "id": "adv-insufficient_evidence",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify insufficient_evidence without fabricating result"
+    },
+    {
+      "id": "adv-nonindependent_review",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify nonindependent_review without fabricating result"
+    },
+    {
+      "id": "adv-runtime_not_run",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify runtime_not_run without fabricating result"
+    },
+    {
+      "id": "adv-regression_failure",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify regression_failure without fabricating result"
+    },
+    {
+      "id": "adv-negative_effect",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify negative_effect without fabricating result"
+    },
+    {
+      "id": "adv-confounded_change",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify confounded_change without fabricating result"
+    },
+    {
+      "id": "adv-small_sample",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify small_sample without fabricating result"
+    },
+    {
+      "id": "adv-measurement_drift",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify measurement_drift without fabricating result"
+    },
+    {
+      "id": "adv-false_causal_claim",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify false_causal_claim without fabricating result"
+    },
+    {
+      "id": "adv-simulated_as_real",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify simulated_as_real without fabricating result"
+    },
+    {
+      "id": "adv-missing_source",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify missing_source without fabricating result"
+    },
+    {
+      "id": "adv-false_meta",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify false_meta without fabricating result"
+    },
+    {
+      "id": "adv-metric_inverted",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify metric_inverted without fabricating result"
+    },
+    {
+      "id": "adv-qualitative_missing_criteria",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify qualitative_missing_criteria without fabricating result"
+    },
+    {
+      "id": "adv-critical_risk",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify critical_risk without fabricating result"
+    },
+    {
+      "id": "adv-unsafe_test",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify unsafe_test without fabricating result"
+    },
+    {
+      "id": "adv-historical_event",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify historical_event without fabricating result"
+    },
+    {
+      "id": "adv-unreproducible_event",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify unreproducible_event without fabricating result"
+    },
+    {
+      "id": "adv-failed_command_hidden",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify failed_command_hidden without fabricating result"
+    },
+    {
+      "id": "adv-Astra_opinion_only",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify Astra_opinion_only without fabricating result"
+    },
+    {
+      "id": "adv-self_review",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify self_review without fabricating result"
+    },
+    {
+      "id": "adv-observer_not_run",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify observer_not_run without fabricating result"
+    },
+    {
+      "id": "adv-invalid_type",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify invalid_type without fabricating result"
+    },
+    {
+      "id": "adv-duplicate_evidence",
+      "classification": "SIMULATED",
+      "invariant": "Detect/qualify duplicate_evidence without fabricating result"
+    }
+  ]
+}
