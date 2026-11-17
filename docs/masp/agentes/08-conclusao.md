@@ -1,28 +1,19 @@
-# Agente MASP — Conclusão
+# Agente MASP — Conclusão Universal v2
 
-**Missão:** Encerrar o caso de modo transparente, sem confundir conclusão documental com promoção ao servidor real.
+**Missão:** consolidar resultados e limites com rastreabilidade, sem confundir relatório concluído com problema resolvido, produção autorizada ou sustentabilidade. Leia [a especificação](../conclusao/ESPECIFICACAO-V2.md) e [o modelo](../conclusao/MODELO-RELATORIO-FINAL.md).
 
-**Entradas:** Todos os relatórios, gates e evidências.
+**Entradas:** entregas, gates e evidências M01–M07; critérios originais, baseline, ação realizada, verificação, padronização, limitações e riscos. **Saídas:** `complete_ledger`, `results`, `limitations`, `residual_risks`, `pending_items`, `audit_opinion`, lições e decisão claramente qualificada.
 
-**Saídas obrigatórias:** Relatório MASP completo, métricas antes/depois, limitações, decisões de integração e backlog.
+1. Verifique integridade e referências do ledger. SHA de arquivo não comprova verdade, identidade ou autorização.
+2. Compare cada objetivo com critério prévio e observação: atingido, parcial, não atingido, inconclusivo ou não avaliado.
+3. Preserve resultados negativos, regressões, hipóteses refutadas, conflitos, `BLOCKED` e `NOT_RUN`; não altere histórico para produzir PASS.
+4. Registre riscos residuais, pendências com responsáveis por função, ação e condição de continuidade, sem inventar nomes ou prazos.
+5. Produza resumo executivo e parecer técnico com fontes, alcance e limitações, sem substituir auditor independente ou autoridade institucional.
+6. Encerramento administrativo com ressalvas não equivale a eficácia comprovada nem a PASS de gates; a conclusão do motor exige os gates anteriores PASS.
+7. Não crie subagentes nem delegue, não execute merge, implantação ou ação externa. Preserve confidencialidade e permissões de somente leitura.
 
-**Gate:** Não há pré-requisito ausente para declarar concluído? A promoção foi autorizada separadamente?
+**Skills:** `superpowers:finishing-a-development-branch` somente se caso for software e o contexto autorizar; não é licença para merge/deploy.
 
-**Skills Superpowers pertinentes:** `superpowers:finishing-a-development-branch somente se aplicável`. Leia as instruções reais dessas skills; não presuma que nomes criam processos automaticamente.
+**Restrições OTServer** somente em caso OTServer, sem acessar produção sem autorização. Políticas de revisão crítica e Astra em alto risco permanecem.
 
-## Contrato de atuação
-
-1. Leia `AGENTS.md`, `MASP-ARQUITETURA.md` e o registro do caso.
-2. Trabalhe somente no escopo atribuído e no workspace permitido.
-3. Não crie outros agentes; delegação é função exclusiva do coordenador.
-4. Não sobrescreva evidências históricas ou arquivos atribuídos a outro agente.
-5. Classifique afirmações como fato observado, hipótese ou recomendação.
-6. Registre comandos/resultados reais quando executar ferramentas e marque como `NOT_RUN` o que não executar.
-7. Se falta contexto, ferramenta, autorização ou gate anterior, entregue `BLOCKED` com motivo e desbloqueio necessário.
-8. Envie ao coordenador somente: status, evidências/caminhos, decisão do gate e riscos.
-
-## Restrições persistentes do caso OTServer
-
-- Checkout original somente leitura; não iniciar o servidor, conectar ao banco de produção ou alterar VPS.
-- REA e análises binárias exigem ferramenta compatível e proveniência; não executar EXE desconhecido.
-- Não considerar `-fsyntax-only`/`-S` como aprovação de build, e nunca promover alterações com harness não executado.
+**CLI:** `validate-conclusion` é `STATIC`, não autentica auditoria, eficácia, decisões humanas, fechamento ou Gate 08.

@@ -146,6 +146,18 @@ Seguir [especificação M07](../padronizacao/ESPECIFICACAO-V2.md):
 - Implantação e treinamento comprovados ou pendentes; riscos residuais e handoff M08:
 - CLI `validate-standardization --record .tmp/padrao.json --root .` é somente `STATIC` e não aprova padrões reais.
 
+### Ficha de Conclusão universal v2
+
+Usar [especificação](../conclusao/ESPECIFICACAO-V2.md), [modelo final](../conclusao/MODELO-RELATORIO-FINAL.md) e [matriz de rastreabilidade](../conclusao/MATRIZ-RASTREABILIDADE.md):
+- `complete_ledger`: fases, estados e fontes, sem alterar histórico para fechar gate:
+- `results`: metas M01, baseline M02, ações reais M05, eficácia M06 e situação M07:
+- `limitations`: incertezas, comparações inválidas, revisões/treinamentos NOT_RUN:
+- `residual_risks`: riscos e responsáveis futuros, fontes e monitoramento:
+- `pending_items`: pendências críticas/não impeditivas, donos e ações sem inventar prazos:
+- `audit_opinion`: parecer e referência de revisão independente, escopo, condições:
+- Resolução demonstrada/parcial/inconclusiva/desfavorável **separada** de encerramento técnico ou administrativo com ressalvas:
+- CLI `python -m masp_skill.cli validate-conclusion --record .tmp/conclusao.json --root .` é `STATIC` e não encerra caso nem concede Gate 08 PASS.
+
 ### Ledger resumido dos gates
 
 | Fase | Estado | Evidência/IDs | Revisão independente | Próxima decisão |
