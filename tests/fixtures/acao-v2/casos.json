@@ -1,0 +1,172 @@
+{
+  "classification": "SIMULATED",
+  "domains": [
+    {
+      "id": "domain-industria",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in industria; no external execution."
+    },
+    {
+      "id": "domain-logistica",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in logistica; no external execution."
+    },
+    {
+      "id": "domain-saude",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in saude; no external execution."
+    },
+    {
+      "id": "domain-administracao",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in administracao; no external execution."
+    },
+    {
+      "id": "domain-meio-ambiente",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in meio-ambiente; no external execution."
+    },
+    {
+      "id": "domain-tecnologia",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in tecnologia; no external execution."
+    },
+    {
+      "id": "domain-educacao",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in educacao; no external execution."
+    },
+    {
+      "id": "domain-servicos",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in servicos; no external execution."
+    },
+    {
+      "id": "domain-cotidiano",
+      "classification": "SIMULATED",
+      "invariant": "Record only attributable changes in cotidiano; no external execution."
+    }
+  ],
+  "adversarial": [
+    {
+      "id": "adv-approval_missing",
+      "classification": "SIMULATED",
+      "invariant": "Flag approval_missing without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-approval_faked",
+      "classification": "SIMULATED",
+      "invariant": "Flag approval_faked without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-plan_version_drift",
+      "classification": "SIMULATED",
+      "invariant": "Flag plan_version_drift without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-scope_mismatch",
+      "classification": "SIMULATED",
+      "invariant": "Flag scope_mismatch without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-no_isolation",
+      "classification": "SIMULATED",
+      "invariant": "Flag no_isolation without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-unauthorized_exec",
+      "classification": "SIMULATED",
+      "invariant": "Flag unauthorized_exec without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-stop_ignored",
+      "classification": "SIMULATED",
+      "invariant": "Flag stop_ignored without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-partial_failure",
+      "classification": "SIMULATED",
+      "invariant": "Flag partial_failure without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-sensitive_data",
+      "classification": "SIMULATED",
+      "invariant": "Flag sensitive_data without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-not_run_turned_real",
+      "classification": "SIMULATED",
+      "invariant": "Flag not_run_turned_real without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-parallel_conflict",
+      "classification": "SIMULATED",
+      "invariant": "Flag parallel_conflict without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-unsafe_rollback",
+      "classification": "SIMULATED",
+      "invariant": "Flag unsafe_rollback without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-irreversible_rollback_faked",
+      "classification": "SIMULATED",
+      "invariant": "Flag irreversible_rollback_faked without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-missing_before",
+      "classification": "SIMULATED",
+      "invariant": "Flag missing_before without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-missing_after",
+      "classification": "SIMULATED",
+      "invariant": "Flag missing_after without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-missing_evidence",
+      "classification": "SIMULATED",
+      "invariant": "Flag missing_evidence without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-duplicate_task",
+      "classification": "SIMULATED",
+      "invariant": "Flag duplicate_task without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-self_approval",
+      "classification": "SIMULATED",
+      "invariant": "Flag self_approval without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-same_verifier",
+      "classification": "SIMULATED",
+      "invariant": "Flag same_verifier without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-unattributed_observation",
+      "classification": "SIMULATED",
+      "invariant": "Flag unattributed_observation without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-fake_command",
+      "classification": "SIMULATED",
+      "invariant": "Flag fake_command without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-unsupported_environment",
+      "classification": "SIMULATED",
+      "invariant": "Flag unsupported_environment without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-malformed_list",
+      "classification": "SIMULATED",
+      "invariant": "Flag malformed_list without inventing authorization or intervention."
+    },
+    {
+      "id": "adv-invalid_enum",
+      "classification": "SIMULATED",
+      "invariant": "Flag invalid_enum without inventing authorization or intervention."
+    }
+  ]
+}

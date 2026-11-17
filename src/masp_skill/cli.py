@@ -17,6 +17,7 @@ from .routing import load_agent_configs, load_routing, validate_agent_configs, v
 from .observation import validate_observation_record
 from .analysis import validate_analysis_record
 from .action_plan import validate_action_plan_record
+from .action_execution import validate_action_execution_record
 
 
 def _read_json(path: Path):
@@ -565,6 +566,10 @@ def main(argv: list[str] | None = None) -> int:
     action_plan.add_argument("--record", type=Path, required=True)
     action_plan.add_argument("--root", type=Path, default=Path.cwd())
 
+    action_execution = commands.add_parser("validate-action-execution", help="check M05 execution record (STATIC, no action execution)")
+    action_execution.add_argument("--record", type=Path, required=True)
+    action_execution.add_argument("--root", type=Path, default=Path.cwd())
+
     smoke = commands.add_parser("runtime-smoke", help="collect low-impact Codex CLI smoke evidence")
     smoke.add_argument("--root", type=Path, default=Path.cwd())
     smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
@@ -573,6 +578,16 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        if args.command == "validate-action-execution":
+            record_path = _within_root(args.record, args.root)
+            issues = validate_action_execution_record(_read_json(record_path))
+            if issues:
+                print(f"STATIC: {len(issues)} structural execution record error(s)")
+                for issue in issues:
+                    print(f"- {issue}")
+                return 1
+            print("STATIC: record structurally valid; does not authenticate approval, perform actions or pass Gate 05")
+            return 0
         if args.command == "validate-action-plan":
             record_path = _within_root(args.record, args.root)
             issues = validate_action_plan_record(_read_json(record_path))

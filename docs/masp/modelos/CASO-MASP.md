@@ -113,6 +113,16 @@ Usar [a especificação](../plano-acao/ESPECIFICACAO-V2.md), [o modelo 5W2H](../
 
 CLI opcional `python -m masp_skill.cli validate-action-plan --record .tmp/plano.json --root .`: valida estrutura `STATIC`, mas **não** autentica aprovação ou libera a intervenção.
 
+### Ficha de Ação universal v2
+
+Usar [especificação M05](../acao/ESPECIFICACAO-V2.md) e [modelo](../acao/MODELO-EXECUCAO.md):
+- Plano M04 e versão, autorização externa efetivamente conferida, escopo e ambiente:
+- Executor, aprovador e verificador independentes por função:
+- Por tarefa: `changes`, `diff` antes/depois, `commands` ou procedimento real, `results` observados, evidências e limitações:
+- `no_self_approval`, estado realizado/parcial/bloqueado/não executado, desvios, riscos e contingência:
+- Handoff M06: fontes, resultado imediato, meta/baseline e verificações pendentes:
+- CLI: `python -m masp_skill.cli validate-action-execution --record .tmp/acao.json --root .` é **STATIC**, não autentica autorização nem concede PASS.
+
 ### Ledger resumido dos gates
 
 | Fase | Estado | Evidência/IDs | Revisão independente | Próxima decisão |

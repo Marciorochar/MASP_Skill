@@ -154,6 +154,16 @@ python -m masp_skill.cli validate-action-plan --record .tmp/plano.json --root .
 
 O comando verifica apenas a **estrutura declarada (`STATIC`)**. Mesmo uma ficha JSON com status `approved` **não autentica aprovação humana, não concede `PASS` ao Gate 04 e não autoriza a fase Ação**. Uma Análise inconclusiva não pode fundamentar ação corretiva definitiva.
 
+## Ação Universal v2 — execução documentada
+
+O [Módulo 05](docs/masp/acao/ESPECIFICACAO-V2.md) permite registrar uma alteração técnica ou não digital mediante plano e autorização externos: condição anterior/posterior, procedimentos realmente realizados, resultados imediatos, riscos, desvios e contingência. Não estabelece eficácia, que pertence à Verificação M06.
+
+```powershell
+python -m masp_skill.cli validate-action-execution --record .tmp/acao.json --root .
+```
+
+Esse comando confere **apenas estrutura STATIC**: não executa intervenções, não autentica aprovação, resultados operacionais, agentes ou Gate 05. Consultar o [modelo de execução](docs/masp/acao/MODELO-EXECUCAO.md) para documentação humana.
+
 ## O que significam os resultados?
 
 | Classificação | Significado |
