@@ -38,6 +38,7 @@ def example_bundle():
     verification["action_reference"] = action["record_id"]
     verification["executor_id"] = action["executor_id"]
     verification["reviewer_id"] = action["verifier_id"]
+    verification["independent_review"]["reviewer_id"] = action["verifier_id"]
     verification["baseline"]["source_reference"] = action["baseline_reference"]
     verification["evidence"].append({"id": action["baseline_reference"], "classification": "SIMULATED"})
 
