@@ -1,0 +1,202 @@
+{
+  "classification": "SIMULATED",
+  "domains": [
+    {
+      "id": "domain-industria",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for industria"
+    },
+    {
+      "id": "domain-logistica",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for logistica"
+    },
+    {
+      "id": "domain-saude",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for saude"
+    },
+    {
+      "id": "domain-administracao",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for administracao"
+    },
+    {
+      "id": "domain-meio-ambiente",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for meio-ambiente"
+    },
+    {
+      "id": "domain-tecnologia",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for tecnologia"
+    },
+    {
+      "id": "domain-educacao",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for educacao"
+    },
+    {
+      "id": "domain-servicos",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for servicos"
+    },
+    {
+      "id": "domain-cotidiano",
+      "classification": "SIMULATED",
+      "invariant": "Define only proportional controls for cotidiano"
+    }
+  ],
+  "adversarial": [
+    {
+      "id": "adv-verification_not_run",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under verification_not_run"
+    },
+    {
+      "id": "adv-verification_inconclusive",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under verification_inconclusive"
+    },
+    {
+      "id": "adv-effectiveness_not_proven",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under effectiveness_not_proven"
+    },
+    {
+      "id": "adv-simulation_as_real",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under simulation_as_real"
+    },
+    {
+      "id": "adv-no_owner",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under no_owner"
+    },
+    {
+      "id": "adv-control_unrelated",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under control_unrelated"
+    },
+    {
+      "id": "adv-scope_expansion",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under scope_expansion"
+    },
+    {
+      "id": "adv-no_trigger",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under no_trigger"
+    },
+    {
+      "id": "adv-unobservable_trigger",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under unobservable_trigger"
+    },
+    {
+      "id": "adv-missing_regression",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under missing_regression"
+    },
+    {
+      "id": "adv-failed_regression_hidden",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under failed_regression_hidden"
+    },
+    {
+      "id": "adv-indicator_no_source",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under indicator_no_source"
+    },
+    {
+      "id": "adv-invented_target",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under invented_target"
+    },
+    {
+      "id": "adv-training_needed",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under training_needed"
+    },
+    {
+      "id": "adv-training_planned_as_done",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under training_planned_as_done"
+    },
+    {
+      "id": "adv-approval_missing",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under approval_missing"
+    },
+    {
+      "id": "adv-fictitious_approval",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under fictitious_approval"
+    },
+    {
+      "id": "adv-version_missing",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under version_missing"
+    },
+    {
+      "id": "adv-obsolete_active",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under obsolete_active"
+    },
+    {
+      "id": "adv-conflicting_roles",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under conflicting_roles"
+    },
+    {
+      "id": "adv-residual_risk_missing",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under residual_risk_missing"
+    },
+    {
+      "id": "adv-new_risk",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under new_risk"
+    },
+    {
+      "id": "adv-sustainability_unobserved",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under sustainability_unobserved"
+    },
+    {
+      "id": "adv-undocumented_change",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under undocumented_change"
+    },
+    {
+      "id": "adv-unauthorized_reaction",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under unauthorized_reaction"
+    },
+    {
+      "id": "adv-history_overwrite",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under history_overwrite"
+    },
+    {
+      "id": "adv-safety_skipped",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under safety_skipped"
+    },
+    {
+      "id": "adv-monitor_not_run",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under monitor_not_run"
+    },
+    {
+      "id": "adv-domain_mismatch",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under domain_mismatch"
+    },
+    {
+      "id": "adv-illegal_return",
+      "classification": "SIMULATED",
+      "invariant": "Prevent false standardization claim under illegal_return"
+    }
+  ]
+}
