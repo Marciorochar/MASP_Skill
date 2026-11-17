@@ -174,6 +174,16 @@ python -m masp_skill.cli validate-verification --record .tmp/verificacao.json --
 
 O validador é **STATIC**, não mede eficácia nem autentica medição, execução ou revisor. A alteração estreita em `case.py` permite a declaração de observação realizada no ledger **SIMULATED**, sem autenticar resultados; casos críticos mantêm os requisitos de auditoria.
 
+## Padronização Universal v2 — prevenir recorrência
+
+O [Módulo 07](docs/masp/padronizacao/ESPECIFICACAO-V2.md) transforma melhorias adequadamente verificadas em controles proporcionais, responsáveis, gatilhos e monitoramento. O padrão documentado, a aprovação, a implantação e a sustentabilidade são situações distintas.
+
+```powershell
+python -m masp_skill.cli validate-standardization --record .tmp/padrao.json --root .
+```
+
+O comando valida somente estrutura `STATIC` e não autentica Verificação, assinatura, treinamento, implantação, acompanhamento, riscos operacionais ou Gate 07. Consultar [modelo](docs/masp/padronizacao/MODELO-PADRAO.md) e [plano de controle](docs/masp/padronizacao/PLANO-CONTROLE.md).
+
 ## O que significam os resultados?
 
 | Classificação | Significado |

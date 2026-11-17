@@ -134,6 +134,18 @@ Seguir [especificação](../verificacao/ESPECIFICACAO-V2.md) e [matriz](../verif
 - Resultado/eficácia no escopo, incertezas, riscos e limitações para M07:
 - CLI `python -m masp_skill.cli validate-verification --record .tmp/verificacao.json --root .` é `STATIC`, não comprova eficácia nem gate.
 
+### Ficha de Padronização universal v2
+
+Seguir [especificação M07](../padronizacao/ESPECIFICACAO-V2.md):
+- Parecer de Verificação M06, alcance/limites da eficácia e riscos:
+- `preventive_control`: causa/risco, tipo, procedimento, evidência de uso e limitações:
+- `owner`: responsável pela aplicação, revisão e reação:
+- `trigger`: condição verificável, método de detecção, reação e autoridade:
+- `regression`: indicador/teste, fonte, critério, status e frequência justificada:
+- Estado DRAFT/UNDER_REVIEW/APPROVED/ACTIVE/SUSPENDED/OBSOLETE **documental**, distinto do ledger:
+- Implantação e treinamento comprovados ou pendentes; riscos residuais e handoff M08:
+- CLI `validate-standardization --record .tmp/padrao.json --root .` é somente `STATIC` e não aprova padrões reais.
+
 ### Ledger resumido dos gates
 
 | Fase | Estado | Evidência/IDs | Revisão independente | Próxima decisão |
