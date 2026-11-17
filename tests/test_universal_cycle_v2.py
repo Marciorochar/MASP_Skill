@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from masp_skill import cli
 from masp_skill.case import GATE_REQUIREMENTS, create_case, transition_case, validate_case
 from masp_skill.evidence import make_evidence
 from masp_skill.routing import load_routing
@@ -183,3 +184,24 @@ def test_integrated_validator_does_not_accept_malformed_input():
     assert validate(None)
     assert validate({"acao": [], "verificacao": None, "padronizacao": {},
                      "conclusao": "fake"})
+
+
+def test_cli_reports_static_validation_and_rejects_broken_handoff(tmp_path, capsys):
+    bundle = example_bundle()
+    args = ["validate-universal-cycle", "--root", str(tmp_path)]
+    paths = {}
+    for phase, flag in (("acao", "--action"), ("verificacao", "--verification"),
+                        ("padronizacao", "--standardization"), ("conclusao", "--conclusion")):
+        path = tmp_path / f"{phase}.json"
+        path.write_text(json.dumps(bundle[phase]), encoding="utf-8")
+        paths[phase] = path
+        args.extend((flag, str(path)))
+
+    assert cli.main(args) == 0
+    output = capsys.readouterr().out
+    assert "STATIC" in output and "not authenticate" in output.lower()
+
+    bundle["verificacao"]["action_reference"] = "WRONG"
+    paths["verificacao"].write_text(json.dumps(bundle["verificacao"]), encoding="utf-8")
+    assert cli.main(args) == 1
+    assert "action_reference" in capsys.readouterr().out
