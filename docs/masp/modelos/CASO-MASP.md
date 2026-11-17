@@ -123,6 +123,17 @@ Usar [especificação M05](../acao/ESPECIFICACAO-V2.md) e [modelo](../acao/MODEL
 - Handoff M06: fontes, resultado imediato, meta/baseline e verificações pendentes:
 - CLI: `python -m masp_skill.cli validate-action-execution --record .tmp/acao.json --root .` é **STATIC**, não autentica autorização nem concede PASS.
 
+### Ficha de Verificação universal v2
+
+Seguir [especificação](../verificacao/ESPECIFICACAO-V2.md) e [matriz](../verificacao/MATRIZ-VERIFICACAO.md):
+- M05 evidências e ações efetivamente realizadas, objetivos/metas M01/M04 e baseline M02:
+- `baseline_comparison`: comparabilidade, fonte, unidade, método, período, variação válida ou impossibilidade:
+- `runtime_tests`: comandos com saída real **ou** procedimento observacional realmente realizado com método, fonte e resultado:
+- `relevant_regressions`: riscos, efeitos colaterais, testes FAIL/NOT_RUN e providência:
+- `independent_review`: autor/verificador segregados, decisão e referência; não aceitar autoavaliação:
+- Resultado/eficácia no escopo, incertezas, riscos e limitações para M07:
+- CLI `python -m masp_skill.cli validate-verification --record .tmp/verificacao.json --root .` é `STATIC`, não comprova eficácia nem gate.
+
 ### Ledger resumido dos gates
 
 | Fase | Estado | Evidência/IDs | Revisão independente | Próxima decisão |

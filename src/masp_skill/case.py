@@ -201,8 +201,26 @@ def _gate_errors(
         failed_execution = [item for item in execution_records if not successful_execution(item)]
         if failed_execution:
             errors.append("verification gate cannot PASS: every test/command execution record must have exit_code 0")
-        if not any(successful_execution(item) for item in execution_records):
-            errors.append("verification gate requires at least one successful test/command execution record apart from Astra opinion")
+        # Non-digital checks may be witnessed observations rather than CLI tests.
+        # Every label remains untrusted in this SIMULATED ledger: no identity,
+        # observation or independent review is authenticated by this code.
+        observational_records = [item for item in runtime_records
+                                 if item.get("role") != "masp-especialista-critico"
+                                 and item.get("procedure_type") == "observation"]
+
+        def successful_observation(item: dict[str, Any]) -> bool:
+            needed = ("method", "source_reference", "result", "observed_by",
+                      "reviewed_by", "review_reference")
+            return (item.get("procedure_status") == "performed"
+                    and all(isinstance(item.get(k), str) and item[k].strip()
+                            for k in needed)
+                    and item["observed_by"] != item["reviewed_by"])
+
+        if any(not successful_observation(item) for item in observational_records):
+            errors.append("verification gate invalid observational record: performed method, result, source and independent reviewer required")
+        if not (any(successful_execution(item) for item in execution_records)
+                or any(successful_observation(item) for item in observational_records)):
+            errors.append("verification gate requires at least one successful test/command execution record or independent observational procedure apart from Astra opinion")
     if phase_id == "conclusao":
         prior_phases = [item.get("name") for item in routing.get("phases", []) if item.get("name") != phase.get("name")]
         passed_phases = {event.get("phase") for event in prior_events

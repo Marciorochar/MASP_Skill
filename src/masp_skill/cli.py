@@ -18,6 +18,7 @@ from .observation import validate_observation_record
 from .analysis import validate_analysis_record
 from .action_plan import validate_action_plan_record
 from .action_execution import validate_action_execution_record
+from .verification import validate_verification_record
 
 
 def _read_json(path: Path):
@@ -570,6 +571,10 @@ def main(argv: list[str] | None = None) -> int:
     action_execution.add_argument("--record", type=Path, required=True)
     action_execution.add_argument("--root", type=Path, default=Path.cwd())
 
+    verify = commands.add_parser("validate-verification", help="check a universal M06 verification record (STATIC only)")
+    verify.add_argument("--record", type=Path, required=True)
+    verify.add_argument("--root", type=Path, default=Path.cwd())
+
     smoke = commands.add_parser("runtime-smoke", help="collect low-impact Codex CLI smoke evidence")
     smoke.add_argument("--root", type=Path, default=Path.cwd())
     smoke.add_argument("--output-dir", type=Path, default=Path("docs/masp/evidencias"))
@@ -578,6 +583,16 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        if args.command == "validate-verification":
+            record_path = _within_root(args.record, args.root)
+            issues = validate_verification_record(_read_json(record_path))
+            if issues:
+                print(f"STATIC: {len(issues)} structural verification record error(s)")
+                for issue in issues:
+                    print(f"- {issue}")
+                return 1
+            print("STATIC: verification record structurally valid; no real efficacy, review or Gate 06 PASS authenticated")
+            return 0
         if args.command == "validate-action-execution":
             record_path = _within_root(args.record, args.root)
             issues = validate_action_execution_record(_read_json(record_path))
