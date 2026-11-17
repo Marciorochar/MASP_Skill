@@ -194,6 +194,17 @@ python -m masp_skill.cli validate-conclusion --record .tmp/conclusao.json --root
 
 Validação apenas **STATIC**, sem autenticar identidade, auditoria, eficácia, decisão administrativa ou Gate 08. Use o [modelo de relatório](docs/masp/conclusao/MODELO-RELATORIO-FINAL.md) e a [matriz de riscos e pendências](docs/masp/conclusao/MATRIZ-RISCOS-PENDENCIAS.md). A conclusão do ledger SIMULATED depende dos gates anteriores PASS; arquivamento externo com ressalvas não se confunde com problema resolvido.
 
+## Teste integrado M05–M08 — um caso sintético
+
+O [guia de integração universal](docs/masp/INTEGRACAO-UNIVERSAL-V2.md) explica como conferir as quatro fases v2 e seus vínculos com o mesmo caso. A validação é `STATIC`: não executa ações nem autentica autorizações, agentes ou eficácia.
+
+```powershell
+python -m pytest -q tests/test_universal_cycle_v2.py
+python -m masp_skill.cli validate-universal-cycle --help
+```
+
+O comando aceita `--action`, `--verification`, `--standardization`, `--conclusion` e `--case` opcional. Faça também `validate-case` para conferir o ledger e suas evidências em disco.
+
 ## O que significam os resultados?
 
 | Classificação | Significado |
