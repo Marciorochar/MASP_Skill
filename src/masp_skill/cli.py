@@ -21,6 +21,7 @@ from .action_execution import validate_action_execution_record
 from .verification import validate_verification_record
 from .standardization import validate_standardization_record
 from .conclusion import validate_conclusion_record
+from .universal_cycle import validate_universal_cycle
 
 
 def _read_json(path: Path):
@@ -581,6 +582,12 @@ def main(argv: list[str] | None = None) -> int:
     standardization.add_argument("--record", type=Path, required=True)
     standardization.add_argument("--root", type=Path, default=Path.cwd())
 
+    cycle = commands.add_parser("validate-universal-cycle", help="check M05-M08 handoffs (STATIC only)")
+    for name in ("action", "verification", "standardization", "conclusion"):
+        cycle.add_argument("--" + name, type=Path, required=True)
+    cycle.add_argument("--case", type=Path, help="optional caller-supplied SIMULATED case ledger")
+    cycle.add_argument("--root", type=Path, default=Path.cwd())
+
     conclusion = commands.add_parser("validate-conclusion", help="check universal M08 report (STATIC only)")
     conclusion.add_argument("--record", type=Path, required=True)
     conclusion.add_argument("--root", type=Path, default=Path.cwd())
@@ -593,6 +600,24 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        if args.command == "validate-universal-cycle":
+            records = {
+                "acao": _read_json(_within_root(args.action, args.root)),
+                "verificacao": _read_json(_within_root(args.verification, args.root)),
+                "padronizacao": _read_json(_within_root(args.standardization, args.root)),
+                "conclusao": _read_json(_within_root(args.conclusion, args.root)),
+            }
+            case_record = (_read_json(_within_root(args.case, args.root))
+                           if args.case is not None else None)
+            issues = validate_universal_cycle(records, case=case_record)
+            if issues:
+                print(f"STATIC: {len(issues)} universal cycle inconsistency(s)")
+                for issue in issues:
+                    print(f"- {issue}")
+                return 1
+            print("STATIC: M05-M08 sidecar handoffs structurally coherent; "
+                  "does not authenticate approval, field results, Codex agents or gate PASS")
+            return 0
         if args.command == "validate-conclusion":
             record_path = _within_root(args.record, args.root)
             issues = validate_conclusion_record(_read_json(record_path))
