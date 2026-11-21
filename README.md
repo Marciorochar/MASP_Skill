@@ -111,7 +111,6 @@ python -m masp_skill.cli record-evidence --output .tmp/ev.json --root . --descri
 ```
 
 Coloque todas as opções **antes** do `--`; o que vem depois é o comando, executado sem shell. O `exit_code` é registrado como ocorreu, inclusive falhas; um comando que não termina (tempo esgotado ou inexistente) não gera evidência. Novas evidências são acrescentadas ao arquivo de saída (`--reset` recomeça; ids duplicados são recusados). Esses atalhos **não autenticam** quem executou nem aprovam gates: continuam valendo as regras de `transition`.
-
 Para testar a implementação Python:
 
 ```powershell

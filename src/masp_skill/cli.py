@@ -603,7 +603,6 @@ def main(argv: list[str] | None = None) -> int:
     dispatch.add_argument("--runtime", choices=SUPPORTED_RUNTIMES, default="codex")
     dispatch.add_argument("--objective", default="")
     dispatch.add_argument("--routing", type=Path, default=Path("docs/masp/masp-routing.toml"))
-
     validate_case_parser = commands.add_parser("validate-case", help="validate a case manifest and ledger")
     validate_case_parser.add_argument("--case", type=Path, required=True)
     validate_case_parser.add_argument("--routing", type=Path, default=Path("docs/masp/masp-routing.toml"))

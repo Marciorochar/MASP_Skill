@@ -136,8 +136,6 @@ def resolve_routing_skill_paths(data: dict[str, Any], env: Mapping[str, str] | N
             if isinstance(skill, dict) and isinstance(skill.get("name"), str) and isinstance(skill.get("path"), str):
                 resolved[skill["name"]] = resolve_skill_path(skill["path"], env=env)
     return resolved
-
-
 def load_routing(path: Path) -> dict[str, Any]:
     """Load a TOML routing matrix from *path*."""
     with Path(path).open("rb") as stream:

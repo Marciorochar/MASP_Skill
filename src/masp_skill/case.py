@@ -241,8 +241,6 @@ def _markdown_evidence_errors(evidence: list[dict[str, Any]], root: Path) -> lis
         for issue in check_markdown_criteria(text, satisfies):
             errors.append(f"evidence {item.get('id', '?')} ({reference}): {issue}")
     return errors
-
-
 def _gate_errors(
     case: dict[str, Any],
     phase: dict[str, Any],
