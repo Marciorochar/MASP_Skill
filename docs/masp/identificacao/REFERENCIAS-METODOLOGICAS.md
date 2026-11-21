@@ -1,0 +1,12 @@
+# Referências metodológicas da Identificação v2
+
+Estas fontes informaram escolhas gerais; a especificação é uma adaptação própria para o MASP, sem reprodução de texto ou estrutura. As fontes não demonstram conformidade ou eficácia do agente em execução.
+
+- [PM-Skills: definição do problema](https://github.com/product-on-purpose/pm-skills/blob/main/skills/define-problem-statement/SKILL.md): ajuda a distinguir problema, impacto e contexto. Os metadados consultados da skill e a [licença do repositório](https://github.com/product-on-purpose/pm-skills/blob/main/LICENSE) indicam Apache-2.0; não foi confirmada discrepância entre ambos. Este repositório é diferente do upstream mencionado abaixo.
+- [MITRE Innovation Toolkit: problem framing](https://itk.mitre.org/toolkit-tools/problem-framing/): inspiração geral para delimitar perspectivas e fronteiras; material identificado como protegido por direitos autorais conforme [informações de propriedade intelectual da MITRE](https://www.mitre.org/our-impact/intellectual-property/innovation-toolkit). Não reproduzimos conteúdo.
+- [drsamonline: problem framing canvas](https://github.com/drsamonline/skills/blob/main/skills/problem-framing-canvas/SKILL.md): consultado como referência de proveniência, sem reutilizar texto ou estrutura. A licença exata aplicável à cópia dessa skill não foi confirmada: a página remete a LICENSE, cujo acesso falhou. Ela aponta proveniência para o repositório deanpeters/Product-Manager-Skills, cujo README atual indica CC BY-NC-SA 4.0; isso não comprova a licença da cópia em drsamonline.
+- [Lean Enterprise Institute: perguntas e A3](https://www.lean.org/the-lean-post/articles/questions-and-coaching-on-a3-thinking/): perguntas adaptativas e compreensão da condição antes de investigar causas.
+- [ASQ: Eight Disciplines](https://asq.org/quality-resources/eight-disciplines-8d): separação entre descrição de problema e etapas posteriores de investigação e ação.
+- [AHRQ: matriz Kepner-Tregoe](https://digital.ahrq.gov/health-it-tools-and-resources/evaluation-resources/workflow-assessment-health-it-toolkit/all-workflow-tools/kepner-tregoe-matrix): comparação de limites e características do problema, adaptada aqui a escopo e exclusões sem exigir matriz específica.
+
+As classes de evidência, o gate de cinco critérios, modos rápido e profundo, tratamento de baseline e handoff são decisões do contrato local; não são apresentados como requisitos literais dessas fontes.

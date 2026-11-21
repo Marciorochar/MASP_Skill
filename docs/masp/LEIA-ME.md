@@ -1,10 +1,13 @@
 # MASP Multiagentes + Superpowers — modelo para Codex / OTServer
 
-Este pacote é uma **proposta de configuração documental**, não uma implantação executada no Codex. Ele não modifica o OTServer, o checkout original, serviços, banco, configuração global ou binários.
+Este repositório contém os contratos documentais, a skill local MASP e uma CLI Python para validar roteamento e simular transições de caso. Isso não comprova descoberta da skill nem dos agentes no runtime do Codex e não modifica o OTServer, checkout original, serviços, banco, configuração global ou binários.
 
 ## Organização
 
 - `MASP-ARQUITETURA.md`: fluxo, estados e critérios de passagem.
+- `../../.agents/skills/masp/SKILL.md`: skill local com fluxo MASP, limites de evidência e uso da CLI.
+- `../../skills/masp/references/routing-guide.md`: fases, gates, evidências e comandos oficiais.
+- `masp-routing.toml`: matriz declarativa consumida pela CLI.
 - `AGENTS-MASP-ADENDO.md`: regras para incorporar ao AGENTS.md existente, sem substituí-lo.
 - `PROMPT-CODEX.md`: ordem de início para o coordenador no Codex.
 - `agentes/`: oito contratos de trabalho especializados.
@@ -19,6 +22,7 @@ Este pacote é uma **proposta de configuração documental**, não uma implanta�
 4. Confira se o Codex realmente oferece delegação de subagentes. Em ambientes compatíveis, a skill do Superpowers para Codex descreve `[features] multi_agent = true` no `~/.codex/config.toml`; configurar isso é uma ação separada, com autorização do usuário, e a disponibilidade real deve ser conferida na sessão.
 5. Use `PROMPT-CODEX.md` para começar o piloto `MASP-001` em modo diagnóstico. Não execute ação sobre servidor, DB ou binários desconhecidos.
 6. Não considere documentos de papel uma criação real de agentes. O coordenador deve verificar as ferramentas disponíveis e, somente então, criar/dispatchar os agentes nos mecanismos suportados.
+7. Neste repositório, consulte `.agents/skills/masp/SKILL.md` para a integração local e execute `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC` para validar estaticamente a matriz. `STATIC` não confirma descoberta, delegação ou comportamento em runtime.
 
 ## Princípios
 
@@ -33,4 +37,4 @@ Este pacote é uma **proposta de configuração documental**, não uma implanta�
 
 Identificação → brainstorming; Observação → systematic-debugging; Análise → systematic-debugging; Plano → writing-plans; Ação → using-git-worktrees, test-driven-development, subagent-driven-development; Verificação → verification-before-completion, requesting-code-review; Padronização → writing-skills (se criar uma skill reutilizável); Conclusão → finishing-a-development-branch (somente com verificações completas).
 
-São orientações de fluxo obtidas das skills do plugin Superpowers, não garantias de que todas as ferramentas estão operacionais na sua instalação de Codex.
+`dispatching-parallel-agents` é responsabilidade do coordenador para escolher leituras independentes e fazer fan-out. `subagent-driven-development` governa a execução de um plano aprovado. Uma skill não substitui a outra; ambas dependem de estarem disponíveis na sessão. São orientações de fluxo obtidas das skills do plugin Superpowers, não garantias de que todas as ferramentas estão operacionais na sua instalação de Codex.

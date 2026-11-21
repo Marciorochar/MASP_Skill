@@ -1,0 +1,212 @@
+schema_version = 1
+classification = "STATIC"
+phase_order = ["Identificação", "Observação", "Análise", "Plano de ação", "Ação", "Verificação", "Padronização", "Conclusão"]
+
+[roles.masp-coordenador]
+model = "gpt-6.1-sol"
+effort = "medium"
+responsibility = "Controlar gates, delegação, custo, contexto e consolidação."
+
+[roles.masp-identificador]
+model = "gpt-6-luna"
+effort = "low"
+responsibility = "Delimitar problema, impacto, escopo e métrica."
+
+[roles.masp-observador]
+model = "gpt-6-luna"
+effort = "medium"
+responsibility = "Coletar baseline, reprodução e evidências."
+
+[roles.masp-analista]
+model = "gpt-6.1-sol"
+effort = "medium"
+responsibility = "Avaliar hipóteses e estabelecer causa raiz."
+
+[roles.masp-planejador]
+model = "gpt-6.1-sol"
+effort = "medium"
+responsibility = "Produzir plano, riscos, rollback e critérios de teste."
+
+[roles.masp-executor]
+model = "gpt-6.1-terra"
+effort = "medium"
+responsibility = "Implementar mudanças aprovadas e delimitadas."
+
+[roles.masp-testador]
+model = "gpt-6-luna"
+effort = "low"
+responsibility = "Verificar mudanças independentemente do executor."
+
+[roles.masp-padronizador]
+model = "gpt-6.1-terra"
+effort = "medium"
+responsibility = "Criar controles, regressões e documentação reutilizável."
+
+[roles.masp-relator]
+model = "gpt-6.1-sol"
+effort = "medium"
+responsibility = "Consolidar resultados, limitações e pendências."
+
+[roles.masp-especialista-critico]
+model = "gpt-6-astra"
+effort = "medium"
+responsibility = "Auditar problemas críticos sem implementar correções."
+
+[[phases]]
+id = "identificacao"
+name = "Identificação"
+role = "masp-identificador"
+gate = "PASS quando problema observado versus esperado, impacto, escopo, exclusões e critério verificável numérico ou qualitativo estiverem registrados; caso contrário BLOCKED com lacuna e desbloqueio. Baseline ausente: PENDENTE_DE_OBSERVACAO, sem bloqueio automático."
+inputs = ["Relato inicial do problema", "Contexto e restrições conhecidos"]
+outputs = ["Ficha Markdown com problema, impacto, escopo, exclusões e critério verificável", "Fontes, classes, limitações e pendências para Observação"]
+tools = ["filesystem", "version_control"]
+access_modes = ["read-only"]
+returns = ["Identificação"]
+[[phases.skills]]
+name = "superpowers:brainstorming"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/brainstorming/SKILL.md"
+
+[[phases]]
+id = "observacao"
+name = "Observação"
+role = "masp-observador"
+gate = "PASS somente com fontes atribuídas e evidências suficientes para análise, baseline quantitativo ou qualitativo (ou ausência justificada), ambiente, método e reprodução segura ou limitação; BLOCKED com desbloqueio quando prova insuficiente. Validação de sidecar não aprova gate."
+inputs = ["Ficha de Identificação v2 ou equivalente", "Fontes, contexto, restrições e pendências de coleta"]
+outputs = ["Plano e inventário de fontes", "Baseline ou limitação fundamentada", "Método, qualidade e registros observados", "Lacunas para Análise"]
+tools = ["filesystem", "version_control", "test_runner"]
+access_modes = ["read-only", "execute-approved"]
+returns = ["Identificação"]
+[[phases.skills]]
+name = "superpowers:systematic-debugging"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/systematic-debugging/SKILL.md"
+[[phases.skills]]
+name = "ecc:repo-scan"
+path = "${CODEX_HOME}/plugins/cache/ecc/ecc/2.2.3/skills/repo-scan/SKILL.md"
+required = false
+
+[[phases]]
+id = "analise"
+name = "Análise"
+role = "masp-analista"
+gate = "Comparar hipóteses rivais, evidências favoráveis e contrárias, alternativas, avaliações realizadas e limites; PASS com causa(s) sustentada(s) ou inconclusão legitimamente analisada; BLOCKED quando faltar evidência essencial. Sidecar STATIC não aprova gate."
+inputs = ["Ficha de Identificação v2 ou equivalente", "Observação v2, baseline quantitativo/qualitativo/indisponível, fontes e limitações"]
+outputs = ["Matriz de hipóteses e evidências favoráveis/contrárias", "Avaliação causal documentada ou inconclusão justificada", "Lacunas e alternativas para decisão"]
+tools = ["filesystem", "version_control"]
+access_modes = ["read-only"]
+returns = ["Observação"]
+[[phases.skills]]
+name = "superpowers:systematic-debugging"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/systematic-debugging/SKILL.md"
+
+[[phases]]
+id = "plano-de-acao"
+name = "Plano de ação"
+role = "masp-planejador"
+gate = "Plano 5W2H viável, alternativas justificadas, menor mudança adequada, escopo, responsáveis, riscos, rollback ou contingência, testes e autorização humana REAL registrada; validação STATIC não concede PASS."
+inputs = ["Problema M01, baseline/limitações M02 e conclusão M03", "Restrições, critérios de sucesso e autorizações aplicáveis"]
+outputs = ["Comparação de alternativas e plano 5W2H", "Riscos, prevenção, mitigação, rollback/contingência", "Testes planejados e condições de parada", "Estado real da autorização humana"]
+tools = ["filesystem", "version_control"]
+access_modes = ["read-only"]
+returns = ["Análise"]
+[[phases.skills]]
+name = "superpowers:writing-plans"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/writing-plans/SKILL.md"
+
+[[phases]]
+id = "acao"
+name = "Ação"
+role = "masp-executor"
+gate = "Mudanças autorizadas documentadas com before/after (diff digital ou não), procedimentos/comandos verdadeiros, resultados e no_self_approval; sidecar não autentica aprovação."
+inputs = ["Plano M04 e versão aprovados externamente", "Baseline, riscos, isolamento e escopo autorizado", "Critérios de verificação para M06"]
+outputs = ["Registro de execução por tarefa", "Mudanças antes/depois, procedimentos ou comandos, resultados atribuídos", "Desvios, riscos, contingência, limitações e handoff M06"]
+tools = ["filesystem", "version_control", "test_runner"]
+access_modes = ["read-only", "write-approved", "execute-approved"]
+returns = ["Plano de ação"]
+[[phases.skills]]
+name = "superpowers:using-git-worktrees"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/using-git-worktrees/SKILL.md"
+[[phases.skills]]
+name = "superpowers:test-driven-development"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/test-driven-development/SKILL.md"
+[[phases.skills]]
+name = "superpowers:subagent-driven-development"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/subagent-driven-development/SKILL.md"
+required = false
+
+[[phases]]
+id = "verificacao"
+name = "Verificação"
+role = "masp-testador"
+gate = "Comparação com baseline, testes reais ou observação atribuída, regressões e revisão independente no escopo; não confundir STATIC/SIMULATED com RUNTIME."
+inputs = ["Objetivos e baseline quantitativo/qualitativo/indisponível M01/M02", "Plano M04 e registros de Ação M05", "Fontes, métodos, riscos e critérios de aceitação"]
+outputs = ["Matriz de comparação e eficácia no escopo", "Regressões, limitações e riscos", "Revisão independente e handoff M07"]
+tools = ["filesystem", "version_control", "test_runner"]
+access_modes = ["read-only", "execute-approved"]
+returns = ["Ação", "Análise"]
+[[phases.skills]]
+name = "superpowers:verification-before-completion"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/verification-before-completion/SKILL.md"
+[[phases.skills]]
+name = "superpowers:requesting-code-review"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/requesting-code-review/SKILL.md"
+
+[[phases]]
+id = "padronizacao"
+name = "Padronização"
+role = "masp-padronizador"
+gate = "Controle preventivo relacionado ao resultado M06, responsável definido, trigger observável e regression com método/fonte; padrão aprovado/implantado não presumidos."
+inputs = ["Verificação M06 adequadamente sustentada e limitada ao escopo", "Regressões, riscos, responsabilidades e autorizações competentes"]
+outputs = ["Padrão versionado e controle preventivo", "Responsável, gatilho, reação, verificação de regressão e monitoramento", "Limitações, implantação efetiva ou pendente e handoff M08"]
+tools = ["filesystem", "version_control", "test_runner"]
+access_modes = ["read-only", "write-approved", "execute-approved"]
+returns = ["Verificação"]
+[[phases.skills]]
+name = "superpowers:writing-skills"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/writing-skills/SKILL.md"
+required = false
+
+[[phases]]
+id = "conclusao"
+name = "Conclusão"
+role = "masp-relator"
+gate = "Ledger e resultados rastreáveis, limitações, riscos residuais, pendências e parecer técnico; encerramento documental não implica resolução operacional."
+inputs = ["Histórico de oito fases e gates, metas M01 e baseline M02", "Ação, eficácia, regressões, padronização e fontes", "Riscos residuais, limitações, responsáveis e autorizações"]
+outputs = ["Matriz de rastreabilidade e relatório final com resultados negativos", "Parecer fundamentado, riscos residuais e pendências", "Decisão técnica/administrativa qualificada e limites"]
+tools = ["filesystem", "version_control"]
+access_modes = ["read-only"]
+returns = ["Verificação", "Padronização"]
+[[phases.skills]]
+name = "superpowers:finishing-a-development-branch"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/finishing-a-development-branch/SKILL.md"
+required = false
+
+[policies.parallelism]
+max_agents = 3
+effective_runtime_limit_applies = true
+same_write_file = "reject"
+
+[policies.unavailable_model]
+state = "BLOCKED"
+automatic_fallback = false
+requires_human_approval_for_substitution = true
+
+[policies.audit]
+independent = true
+high_risk_requires_astra = true
+astra_trigger_is_automatic_for_first_test_failure = false
+
+[policies.astra_escalation]
+conditions = ["concurrency_or_deadlock", "security", "complex_reverse_engineering", "critical_architecture_decision", "grave_contradictory_evidence", "high_risk_change", "persistent_problem_after_systematic_diagnosis"]
+required_record = ["astra_reason", "related_evidence", "coordinator_decision"]
+high_risk_requires_astra = true
+astra_unavailable_state = "BLOCKED"
+substitution_requires_human_approval = true
+first_test_failure_triggers = false
+
+[policies.delegation]
+coordinator_only = true
+children_may_spawn = false
+executor_may_self_approve = false
+
+[policies.states]
+values = ["PENDING", "IN_PROGRESS", "PASS", "FAIL", "BLOCKED", "NOT_RUN"]

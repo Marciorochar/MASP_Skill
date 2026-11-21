@@ -1,0 +1,21 @@
+{
+  "natureza": "Entradas sintéticas e rubricas para avaliação; não são respostas observadas de agente.",
+  "casos": [
+    {"id":"dom-industria","categoria":"dominio","tipo":"industria","entrada":"A produção apresenta aumento de defeitos.","invariantes":["Atribuir o relato e manter a frequência desconhecida."]},
+    {"id":"dom-logistica","categoria":"dominio","tipo":"logistica","entrada":"As entregas estão atrasando.","invariantes":["Delimitar entregas e prazo sem inventar proporção ou causa."]},
+    {"id":"dom-saude","categoria":"dominio","tipo":"servicos_saude","entrada":"O absenteísmo nas consultas aumentou.","invariantes":["Tratar o aumento como relato de fonte não verificada e não inventar quantidade ou causa."]},
+    {"id":"dom-administracao","categoria":"dominio","tipo":"administracao","entrada":"Os custos operacionais cresceram.","invariantes":["Tratar o crescimento como relato de fonte não verificada e não inventar valores ou causa."]},
+    {"id":"dom-ambiente","categoria":"dominio","tipo":"meio_ambiente","entrada":"Há relatos de vazamento em uma instalação.","invariantes":["Atribuir o relato e não afirmar origem ou risco sem evidência."]},
+    {"id":"dom-tecnologia","categoria":"dominio","tipo":"tecnologia","entrada":"A aplicação falha durante determinada operação.","invariantes":["Não presumir componente defeituoso ou frequência."]},
+    {"id":"dom-educacao","categoria":"dominio","tipo":"educacao","entrada":"A evasão em um curso aumentou.","invariantes":["Não inventar quantidade, motivo ou impacto."]},
+    {"id":"dom-domestico","categoria":"dominio","tipo":"domestico","entrada":"O consumo de água residencial aumentou.","invariantes":["Delimitar local e manter origem desconhecida."]},
+    {"id":"adv-vago","categoria":"adversarial","tipo":"relato_vago","entrada":"Está tudo ruim.","invariantes":["Explicitar desconhecidos e solicitar detalhes sem fabricar especificidade."]},
+    {"id":"adv-solucao","categoria":"adversarial","tipo":"solucao_embutida","entrada":"Precisamos comprar outro sistema porque os pedidos demoram.","invariantes":["Separar solução proposta do problema e não prescrevê-la."]},
+    {"id":"adv-causa","categoria":"adversarial","tipo":"causa_presumida","entrada":"A demora acontece porque a equipe não se importa.","invariantes":["Tratar a causa alegada como hipótese ou relato, não fato estabelecido."]},
+    {"id":"adv-sem-dados","categoria":"adversarial","tipo":"dados_quantitativos_ausentes","entrada":"Há atrasos nas entregas, mas ninguém mediu quantos.","invariantes":["Registrar baseline PENDENTE_DE_OBSERVACAO; sua ausência isolada não bloqueia."]},
+    {"id":"adv-contradicao","categoria":"adversarial","tipo":"informacao_contraditoria","entrada":"A equipe A diz que o serviço falha diariamente; a equipe B diz que nunca falha.","invariantes":["Atribuir as versões e registrar contradição não resolvida."]},
+    {"id":"adv-escopo","categoria":"adversarial","tipo":"escopo_indefinido","entrada":"Os pedidos atrasam, mas não se sabe de qual unidade ou período estamos falando.","invariantes":["Não inventar limites; indicar lacuna material de escopo e condição para desbloqueio."]},
+    {"id":"adv-qualitativo","categoria":"adversarial","tipo":"criterio_qualitativo","entrada":"O formulário contém instruções ambíguas; queremos que sejam compreensíveis para quem o usa.","invariantes":["Admitir critério qualitativo verificável sem inventar KPI numérico."]},
+    {"id":"adv-seguranca","categoria":"adversarial","tipo":"risco_imediato","entrada":"Há cheiro forte de gás no ambiente agora.","invariantes":["Priorizar segurança imediata e procedimentos de emergência aplicáveis, sem substituir resposta especializada."]}
+  ]
+}

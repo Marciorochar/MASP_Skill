@@ -1,26 +1,37 @@
-# Prompt de inicialização para o Codex
+# Prompt de início de um caso MASP
 
-Trabalhe com **multiagentes organizados pelo MASP em oito etapas**, usando o plugin Superpowers e seguindo as instruções efetivas de `AGENTS.md`.
+Use este prompt depois de abrir o workspace isolado que receberá a investigação. Substitua os valores entre colchetes por caminhos e identificadores reais; confirme os limites do workspace antes de qualquer escrita.
 
-**Projeto original (somente leitura):** `<CAMINHO-DO-OTSERVER>`
+```text
+Conduza o caso [ID MASP] pelo fluxo de oito fases descrito em docs/masp/MASP-ARQUITETURA.md e na skill local .agents/skills/masp/SKILL.md.
 
-**Workspace permitido para diagnóstico e correções aprovadas:** `<CAMINHO-DO-OTSERVER-ISOLADO>`
+Workspace de trabalho: [CAMINHO DO WORKSPACE ISOLADO]
+Projeto/fonte em modo somente leitura: [CAMINHO DA FONTE, SE APLICÁVEL]
+Problema relatado: [RELATO]
+Critério de sucesso: [CRITÉRIO OBSERVÁVEL]
+Limites autorizados: [ARQUIVOS, COMANDOS E OPERAÇÕES]
 
-**Documentação existente:** `docs/engenharia-reversa/validacao-2026-11-15/`
+Antes de trabalhar:
+1. Leia o AGENTS.md efetivo do workspace e confirme as ferramentas realmente disponíveis nesta sessão.
+2. Leia a matriz docs/masp/masp-routing.toml e os contratos dos papéis pertinentes.
+3. Prepare o pacote local com `python -m pip install -e .` antes de chamar a CLI (ou configure `PYTHONPATH=src` no ambiente atual).
+4. Rode `python -m masp_skill.cli validate-routing --routing docs/masp/masp-routing.toml --classification STATIC`.
+5. Crie o manifesto sem sobrescrever nada: `python -m masp_skill.cli new-case --id [ID MASP] --output [ARQUIVO NOVO DENTRO DO WORKSPACE] --root [WORKSPACE]`.
+6. Registre a revisão com `python -m masp_skill.cli case-revision --case [MANIFESTO]` e confira o manifesto com `python -m masp_skill.cli validate-case --case [MANIFESTO] --root [WORKSPACE]`.
 
-**Papéis:** Coordenador MASP; 01-Identificação; 02-Observação; 03-Análise; 04-Plano de Ação; 05-Ação; 06-Verificação; 07-Padronização; 08-Conclusão.
+Siga Identificação, Observação, Análise, Plano de ação, Ação, Verificação, Padronização e Conclusão na ordem. Não avance um gate sem suas evidências. Mantenha cada evidência dentro do workspace autorizado. Antes de cada transição, consulte a revisão atual e passe o SHA-256 esperado conforme `python -m masp_skill.cli transition --help`.
 
-## Instruções ao coordenador
+Classifique cada resultado como STATIC, SIMULATED ou RUNTIME e registre comando, saída, código de saída e limitações apropriados. STATIC e SIMULATED não provam comportamento real. Registre indisponibilidade de modelo, ferramenta, skill ou agente como BLOCKED; não faça fallback sem aprovação humana. Use NOT_RUN quando a verificação não foi executada.
 
-1. Leia `AGENTS.md` local e as regras Superpowers pertinentes.
-2. Leia `docs/masp/MASP-ARQUITETURA.md`, `docs/masp/AGENTS-MASP-ADENDO.md` e cada contrato em `docs/masp/agentes/`. Se este pacote ainda não estiver no workspace, primeiro solicite que seja copiado com segurança, sem sobrescrita.
-3. Verifique se ferramentas de criação de subagentes estão disponíveis **na sessão real**; se não, execute fases em sequência e indique que multiagentes simultâneos estão indisponíveis.
-4. Crie a ficha do piloto `MASP-001`, com base em `docs/masp/exemplos/MASP-001-falha-gcc-c.md`.
-5. Faça as fases em ordem e interrompa qualquer transição quando a evidência obrigatória não existir. Delegue a cada agente somente os arquivos/contexto pertinentes, critérios de aceitação e local de entrega.
-6. Execute a **Observação** sobre `g++ -c` antes de propor mudança no código. Capture stdout/stderr, exit code e versão do toolchain; compare `-fsyntax-only`, `-S` e `-c` com comandos reproduzíveis.
-7. Use Superpowers `systematic-debugging` para causa raiz; `writing-plans` para contramedidas; `test-driven-development` e `subagent-driven-development` nas correções, quando houver ambiente e autorização; `verification-before-completion` para evidências.
-8. **Proibições:** alterar original, iniciar servidor, acessar banco real ou VPS, instalar dependências sem autorização, sobrescrever Graphify histórico, promover código, executar EXE sem proveniência, alterar configuração global Codex.
-9. A Verificação deve ser independente da Ação. O agente 06 registra PASS/FAIL/BLOCKED/NOT_RUN e lacunas do harness. O agente 08 não fecha o caso com bloqueios não resolvidos.
-10. Entregue um relatório por fase e um resumo de status do caso, com todos os gates e próximos passos específicos.
+Somente o coordenador delega. Filhos não criam subagentes; não permita escritores concorrentes no mesmo arquivo. Plano de ação exige aprovação humana antes da Ação; executor não aprova seu próprio trabalho. Alto risco exige parecer independente de Astra; se Astra não estiver disponível, bloqueie. Não altere arquivos fora dos limites aprovados, não acesse serviços/dados reais e não publique.
 
-**Critério de sucesso inicial:** configurar o fluxo MASP na documentação do workspace isolado, iniciar MASP-001 e reunir evidências de reprodução. **Não interpretar isso como autorização para implementar mudanças na engine.**
+Ao concluir, valide o manifesto e entregue os resultados, evidências, riscos e pendências. Não encerre como PASS enquanto houver bloqueio relevante.
+```
+
+## Comandos da CLI
+
+A CLI oferece `validate-routing`, `new-case`, `transition`, `case-revision` e `validate-case`. Consulte os argumentos da operação antes de usá-la: `python -m masp_skill.cli [comando] --help`. Os rótulos de ator, aprovação e modelo registrados pelo motor local são declarativos; não constituem autenticação.
+
+## Situação da integração Codex
+
+A configuração e os arquivos locais podem ser verificados estaticamente, mas a evidência runtime atual registra `BLOCKED` no carregamento estruturado da skill e na descoberta/delegação dos agentes. Consulte [`evidencias/codex-smoke.md`](evidencias/codex-smoke.md) e não declare esses recursos operacionais até obter evidência correlacionada da sessão real.

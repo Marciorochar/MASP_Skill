@@ -46,4 +46,6 @@ Um gate `BLOCKED` interrompe a passagem. Um `FAIL` faz retornar à fase respons�
 
 ## Critérios de paralelismo
 
-São paralelizáveis leituras independentes (ex.: logs do compilador versus inventário de snapshot). São sequenciais: causa raiz antes de plano, plano antes de modificação, modificação antes de verificação, verificação antes de padronização. Múltiplos agentes não devem alterar o mesmo arquivo; nas tarefas de implementação vinculadas, preferir um implementador por vez, com revisão independente em seguida.
+São paralelizáveis leituras independentes (ex.: logs do compilador versus inventário de snapshot). O coordenador pode usar `dispatching-parallel-agents` para decidir o fan-out e preparar contratos independentes. São sequenciais: causa raiz antes de plano, plano antes de modificação, modificação antes de verificação, verificação antes de padronização. Múltiplos agentes não devem alterar o mesmo arquivo.
+
+`subagent-driven-development` tem outra função: quando há plano aprovado e o runtime oferece suporte, o coordenador o usa para atribuir e revisar tarefas de implementação do plano. Não substitui a seleção de trabalhos independentes nem altera a ordem dos gates MASP. Agentes filhos não criam subagentes. Sem suporte ao fluxo, o coordenador trabalha serialmente quando viável; caso contrário, registra `BLOCKED` e o pré-requisito ausente. Consulte `../../.agents/skills/masp/SKILL.md` e `../../skills/masp/references/routing-guide.md` para procedimentos e comandos da CLI.
