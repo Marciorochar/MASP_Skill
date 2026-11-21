@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 from typing import Any
 
+from .documents import check_markdown_criteria
 from .evidence import validate_evidence
 
 STATES = {"PENDING", "IN_PROGRESS", "PASS", "FAIL", "BLOCKED", "NOT_RUN"}
@@ -147,6 +148,99 @@ def _plan_approval_recorded(case: dict[str, Any], prior_events: list[dict[str, A
     return False
 
 
+def _normalize_scope_path(raw_path: Any, root: Path, label: str) -> tuple[str | None, str | None]:
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        return None, f"{label} path must be a non-empty string"
+    resolved_root = Path(root).resolve()
+    try:
+        candidate = Path(raw_path.strip())
+        resolved = candidate.resolve() if candidate.is_absolute() else (resolved_root / candidate).resolve()
+        rel = resolved.relative_to(resolved_root).as_posix().casefold()
+    except (OSError, ValueError, RuntimeError):
+        return None, f"{label} path {raw_path!r} escapes workspace root"
+    return rel, None
+
+
+def _plan_allowed_files(prior_events: list[dict[str, Any]]) -> list[Any] | None:
+    """Return allowed_files from the most recent Plano de ação PASS event, if declared."""
+    for event in reversed(prior_events):
+        if not isinstance(event, dict):
+            continue
+        if event.get("phase") != "Plano de ação" or event.get("new_state") != "PASS":
+            continue
+        items = event.get("evidence")
+        if not isinstance(items, list):
+            return None
+        collected: list[Any] = []
+        found = False
+        for item in items:
+            if isinstance(item, dict) and "allowed_files" in item:
+                found = True
+                value = item.get("allowed_files")
+                if not isinstance(value, list):
+                    return []
+                collected.extend(value)
+        return collected if found else None
+    return None
+
+
+def validate_action_scope(allowed_files: Any, modified_files: Any, root: Path) -> list[str]:
+    """Validate that modified_files is a strict subset of allowed_files within root."""
+    errors: list[str] = []
+    if not isinstance(allowed_files, list) or not allowed_files:
+        return ["Plano de ação allowed_files must be a non-empty list of paths"]
+    normalized_allowed: list[str] = []
+    for raw in allowed_files:
+        norm, err = _normalize_scope_path(raw, root, "allowed_files")
+        if err:
+            errors.append(err)
+        elif norm is not None:
+            normalized_allowed.append(norm)
+    if not isinstance(modified_files, list):
+        return errors + ["Ação modified_files must be a list of paths"]
+    for raw in modified_files:
+        norm, err = _normalize_scope_path(raw, root, "modified_files")
+        if err:
+            errors.append(err)
+            continue
+        assert norm is not None
+        if not any(
+            allowed == "." or norm == allowed or norm.startswith(allowed.rstrip("/") + "/")
+            for allowed in normalized_allowed
+        ):
+            errors.append(f"modified file {raw!r} is outside authorized allowed_files scope")
+    return errors
+
+
+def _markdown_evidence_errors(evidence: list[dict[str, Any]], root: Path) -> list[str]:
+    """Check that Markdown evidence files actually contain non-empty sections for claimed criteria."""
+    resolved_root = Path(root).resolve()
+    errors: list[str] = []
+    for item in evidence:
+        if not isinstance(item, dict) or item.get("classification") == "NOT_RUN":
+            continue
+        reference = item.get("path")
+        satisfies = item.get("satisfies")
+        if not isinstance(reference, str) or not isinstance(satisfies, list):
+            continue
+        if Path(reference).suffix.lower() not in {".md", ".markdown"}:
+            continue
+        try:
+            candidate = Path(reference)
+            resolved = candidate.resolve() if candidate.is_absolute() else (resolved_root / candidate).resolve()
+            resolved.relative_to(resolved_root)
+        except (OSError, ValueError, RuntimeError):
+            continue
+        if not resolved.is_file():
+            continue
+        try:
+            text = resolved.read_text(encoding="utf-8-sig", errors="replace")
+        except OSError as exc:
+            errors.append(f"evidence {item.get('id', '?')} ({reference}) could not be read: {exc}")
+            continue
+        for issue in check_markdown_criteria(text, satisfies):
+            errors.append(f"evidence {item.get('id', '?')} ({reference}): {issue}")
+    return errors
 def _gate_errors(
     case: dict[str, Any],
     phase: dict[str, Any],
@@ -157,6 +251,7 @@ def _gate_errors(
     *,
     historical: bool = False,
     astra_snapshot: dict[str, Any] | None = None,
+    root: Path | None = None,
 ) -> list[str]:
     errors: list[str] = []
     phase_id = phase.get("id")
@@ -179,11 +274,45 @@ def _gate_errors(
         errors.append("NOT_RUN evidence cannot satisfy a gate")
     if required_classification and not any(item.get("classification") == required_classification for item in evidence):
         errors.append(f"gate requires {required_classification} evidence")
+    if root is not None:
+        errors.extend(_markdown_evidence_errors(evidence, root))
     if phase_id == "plano-de-acao":
         if not any(item.get("approval_type") == "human_plan" and isinstance(item.get("approved_by"), str) and item["approved_by"].strip() for item in evidence):
             errors.append("plan gate requires a recorded human approval label; identity is not authenticated")
-    if phase_id == "acao" and not _plan_approval_recorded(case, prior_events):
-        errors.append("Action requires the plan gate to have recorded a simulated human approval")
+        scope_root = Path(root).resolve() if root is not None else Path.cwd().resolve()
+        for item in evidence:
+            if "allowed_files" in item:
+                allowed = item.get("allowed_files")
+                if not isinstance(allowed, list) or not allowed:
+                    errors.append("plan gate allowed_files must be a non-empty list of paths")
+                else:
+                    for raw in allowed:
+                        _, err = _normalize_scope_path(raw, scope_root, "allowed_files")
+                        if err:
+                            errors.append(err)
+    if phase_id == "acao":
+        if not _plan_approval_recorded(case, prior_events):
+            errors.append("Action requires the plan gate to have recorded a simulated human approval")
+        scope_root = Path(root).resolve() if root is not None else Path.cwd().resolve()
+        allowed = _plan_allowed_files(prior_events)
+        declared_modified = [item for item in evidence if "modified_files" in item]
+        if allowed is not None:
+            if not declared_modified:
+                errors.append("Action gate requires modified_files when Plano de ação declared allowed_files")
+            else:
+                modified: list[Any] = []
+                invalid_type = False
+                for item in declared_modified:
+                    val = item.get("modified_files")
+                    if not isinstance(val, list):
+                        invalid_type = True
+                        errors.append("Action modified_files must be a list of paths")
+                    else:
+                        modified.extend(val)
+                if not invalid_type:
+                    errors.extend(validate_action_scope(allowed, modified, scope_root))
+        elif declared_modified:
+            errors.append("Action declared modified_files without an authorized allowed_files scope in Plano de ação")
     if phase_id == "verificacao":
         runtime_records = [item for item in evidence if item.get("classification") == "RUNTIME"]
         if not runtime_records:
@@ -344,7 +473,7 @@ def transition_case(
         if phase_data.get("id") == "acao" and not _plan_approval_recorded(case, case.get("ledger", [])):
             raise ValueError("Action cannot start until the plan gate records a simulated approval")
     if target_state == "PASS":
-        gate_errors = _gate_errors(case, phase_data, evidence, routing, case.get("ledger", []), required_classification)
+        gate_errors = _gate_errors(case, phase_data, evidence, routing, case.get("ledger", []), required_classification, root=evidence_root)
         if gate_errors:
             raise ValueError("; ".join(gate_errors))
 
@@ -469,7 +598,7 @@ def validate_case(case: dict[str, Any], routing: dict[str, Any], root: Path) -> 
         if event.get("new_state") == "PASS" and phase_data and not evidence_errors:
             errors.extend(f"event {index}: {issue}" for issue in _gate_errors(
                 case, phase_data, event_evidence, routing, ledger[:index - 1], historical=True,
-                astra_snapshot=event.get("astra_snapshot")))
+                astra_snapshot=event.get("astra_snapshot"), root=root))
         if event.get("new_state") == "IN_PROGRESS" and phase_data:
             snapshot = event.get("model_snapshot")
             if (not isinstance(snapshot, dict) or snapshot.get("role") != phase_data.get("role")

@@ -64,7 +64,7 @@ access_modes = ["read-only"]
 returns = ["Identificação"]
 [[phases.skills]]
 name = "superpowers:brainstorming"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/brainstorming/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/brainstorming/SKILL.md"
 
 [[phases]]
 id = "observacao"
@@ -78,10 +78,10 @@ access_modes = ["read-only", "execute-approved"]
 returns = ["Identificação"]
 [[phases.skills]]
 name = "superpowers:systematic-debugging"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/systematic-debugging/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/systematic-debugging/SKILL.md"
 [[phases.skills]]
 name = "ecc:repo-scan"
-path = "C:/Users/marci/.codex/plugins/cache/ecc/ecc/2.2.3/skills/repo-scan/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/ecc/ecc/2.2.3/skills/repo-scan/SKILL.md"
 required = false
 
 [[phases]]
@@ -96,7 +96,7 @@ access_modes = ["read-only"]
 returns = ["Observação"]
 [[phases.skills]]
 name = "superpowers:systematic-debugging"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/systematic-debugging/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/systematic-debugging/SKILL.md"
 
 [[phases]]
 id = "plano-de-acao"
@@ -110,7 +110,7 @@ access_modes = ["read-only"]
 returns = ["Análise"]
 [[phases.skills]]
 name = "superpowers:writing-plans"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/writing-plans/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/writing-plans/SKILL.md"
 
 [[phases]]
 id = "acao"
@@ -124,13 +124,13 @@ access_modes = ["read-only", "write-approved", "execute-approved"]
 returns = ["Plano de ação"]
 [[phases.skills]]
 name = "superpowers:using-git-worktrees"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/using-git-worktrees/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/using-git-worktrees/SKILL.md"
 [[phases.skills]]
 name = "superpowers:test-driven-development"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/test-driven-development/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/test-driven-development/SKILL.md"
 [[phases.skills]]
 name = "superpowers:subagent-driven-development"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/subagent-driven-development/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/subagent-driven-development/SKILL.md"
 required = false
 
 [[phases]]
@@ -145,10 +145,10 @@ access_modes = ["read-only", "execute-approved"]
 returns = ["Ação", "Análise"]
 [[phases.skills]]
 name = "superpowers:verification-before-completion"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/verification-before-completion/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/verification-before-completion/SKILL.md"
 [[phases.skills]]
 name = "superpowers:requesting-code-review"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/requesting-code-review/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/requesting-code-review/SKILL.md"
 
 [[phases]]
 id = "padronizacao"
@@ -162,7 +162,7 @@ access_modes = ["read-only", "write-approved", "execute-approved"]
 returns = ["Verificação"]
 [[phases.skills]]
 name = "superpowers:writing-skills"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/writing-skills/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/writing-skills/SKILL.md"
 required = false
 
 [[phases]]
@@ -177,7 +177,7 @@ access_modes = ["read-only"]
 returns = ["Verificação", "Padronização"]
 [[phases.skills]]
 name = "superpowers:finishing-a-development-branch"
-path = "C:/Users/marci/.codex/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/finishing-a-development-branch/SKILL.md"
+path = "${CODEX_HOME}/plugins/cache/openai-curated-remote/superpowers/7.0.1/skills/finishing-a-development-branch/SKILL.md"
 required = false
 
 [policies.parallelism]

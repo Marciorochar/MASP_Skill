@@ -1,6 +1,9 @@
 """Load and statically validate the repository's MASP routing matrix."""
 
+from collections.abc import Mapping
+import os
 from pathlib import Path
+import re
 import tomllib
 from typing import Any
 
@@ -99,6 +102,40 @@ def validate_agent_configs(routing: dict[str, Any], agents: dict[str, dict[str, 
     return errors
 
 
+_PLACEHOLDER_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def resolve_skill_path(raw_path: str, env: Mapping[str, str] | None = None) -> Path:
+    """Resolve portable skill paths supporting ``~`` and ``${CODEX_HOME}`` / env vars."""
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        raise ValueError("skill path must be a non-empty string")
+    source_env = env if env is not None else os.environ
+    codex_home = source_env.get("CODEX_HOME") or str(Path.home() / ".codex")
+
+    def _replace(match: re.Match[str]) -> str:
+        key = match.group(1)
+        if key == "CODEX_HOME":
+            return codex_home
+        if key in source_env and source_env[key]:
+            return source_env[key]
+        raise ValueError(f"unresolved skill path placeholder ${{{key}}} in {raw_path!r}")
+
+    expanded = _PLACEHOLDER_RE.sub(_replace, raw_path.strip())
+    if "${" in expanded:
+        raise ValueError(f"malformed placeholder in skill path {raw_path!r}")
+    return Path(expanded).expanduser()
+
+
+def resolve_routing_skill_paths(data: dict[str, Any], env: Mapping[str, str] | None = None) -> dict[str, Path]:
+    """Return a mapping of declared skill names to resolved local Paths."""
+    resolved: dict[str, Path] = {}
+    for phase in data.get("phases", []):
+        if not isinstance(phase, dict):
+            continue
+        for skill in phase.get("skills", []) or []:
+            if isinstance(skill, dict) and isinstance(skill.get("name"), str) and isinstance(skill.get("path"), str):
+                resolved[skill["name"]] = resolve_skill_path(skill["path"], env=env)
+    return resolved
 def load_routing(path: Path) -> dict[str, Any]:
     """Load a TOML routing matrix from *path*."""
     with Path(path).open("rb") as stream:
@@ -160,6 +197,11 @@ def validate_routing(data: dict[str, Any]) -> list[str]:
                         or not skill["name"].strip() or not isinstance(skill.get("path"), str)
                         or not skill["path"].strip()):
                     errors.append(f"phase {phase_id} has a skill without a registered name and path")
+                else:
+                    try:
+                        resolve_skill_path(skill["path"])
+                    except ValueError as exc:
+                        errors.append(f"phase {phase_id} skill {skill['name']!r}: {exc}")
 
     roles = data.get("roles")
     if not isinstance(roles, dict):

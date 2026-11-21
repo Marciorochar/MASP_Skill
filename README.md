@@ -92,6 +92,25 @@ python -m masp_skill.cli transition --help
 
 O comando `new-case` não sobrescreve arquivos existentes. As transições exigem evidências e verificação da revisão do manifesto para evitar atualizações sobre dados desatualizados. Os registros criados pela CLI são classificados como **`SIMULATED`**.
 
+### Atalhos para reduzir trabalho manual
+
+Dois comandos evitam montar JSON e consultar a revisão à mão:
+
+```powershell
+# Onde estou? Mostra fase, estado, critérios do gate, próximo passo e a revisão atual
+python -m masp_skill.cli status --case .tmp/MASP-DEMO.json --root .
+
+# Confere se um documento Markdown tem seções não vazias para os critérios do gate (STATIC)
+python -m masp_skill.cli validate-document --file .tmp/nota.md --gate identificacao --root .
+
+# Registra uma evidência (calcula o SHA-256). --gate preenche os critérios da fase
+python -m masp_skill.cli record-evidence --output .tmp/ev.json --root . --file .tmp/nota.md --classification STATIC --description "Identificação" --gate identificacao
+
+# Executa um comando de verdade e registra como RUNTIME (comando, exit_code, stdout/stderr e log)
+python -m masp_skill.cli record-evidence --output .tmp/ev.json --root . --description "pytest" --gate verificacao -- python -m pytest -q
+```
+
+Coloque todas as opções **antes** do `--`; o que vem depois é o comando, executado sem shell. O `exit_code` é registrado como ocorreu, inclusive falhas; um comando que não termina (tempo esgotado ou inexistente) não gera evidência. Novas evidências são acrescentadas ao arquivo de saída (`--reset` recomeça; ids duplicados são recusados). Esses atalhos **não autenticam** quem executou nem aprovam gates: continuam valendo as regras de `transition`.
 Para testar a implementação Python:
 
 ```powershell

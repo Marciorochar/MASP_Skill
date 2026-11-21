@@ -22,6 +22,10 @@ from .verification import validate_verification_record
 from .standardization import validate_standardization_record
 from .conclusion import validate_conclusion_record
 from .universal_cycle import validate_universal_cycle
+from .ergonomics import build_evidence_record, merge_evidence, next_log_name, summarize_case
+from .documents import check_markdown_criteria
+from .runtime_adapter import SUPPORTED_RUNTIMES, plan_phase_dispatch
+from .case import GATE_REQUIREMENTS
 
 
 def _read_json(path: Path):
@@ -553,6 +557,52 @@ def main(argv: list[str] | None = None) -> int:
     revision = commands.add_parser("case-revision", help="print the current manifest revision for compare-and-swap")
     revision.add_argument("--case", type=Path, required=True)
 
+    record = commands.add_parser(
+        "record-evidence",
+        help="append one evidence object (with SHA-256) to a JSON array; optionally run a command as RUNTIME evidence",
+        description="Put all options before '--'. Everything after '--' is the command to run (no shell), "
+                    "e.g.: record-evidence --output ev.json --description \"tests\" --gate verificacao -- python -m pytest -q",
+    )
+    record.add_argument("--output", type=Path, required=True, help="evidence JSON array to create or append to (inside --root)")
+    record.add_argument("--description", required=True)
+    record.add_argument("--file", type=Path, help="existing artifact to reference (not needed when running a command)")
+    record.add_argument("--classification", choices=sorted(("STATIC", "SIMULATED", "RUNTIME", "NOT_RUN")),
+                        help="required with --file; a recorded command is always RUNTIME")
+    record.add_argument("--id", help="evidence id (default: hash of the path)")
+    record.add_argument("--gate", choices=sorted(GATE_REQUIREMENTS), help="fill satisfies with every criterion of this gate")
+    record.add_argument("--satisfies", help="extra comma-separated criteria")
+    record.add_argument("--meta", action="append", metavar="KEY=VALUE",
+                        help="extra field (repeatable); VALUE is parsed as JSON when valid, e.g. role=masp-testador")
+    record.add_argument("--log", type=Path, help="where to save command output (default: next to --output)")
+    record.add_argument("--timeout", type=int, default=300, help="seconds before a command is abandoned")
+    record.add_argument("--from-git-diff", action="store_true",
+                        help="populate modified_files from 'git diff --name-only' in --root")
+    record.add_argument("--reset", action="store_true", help="start a new array instead of appending")
+    record.add_argument("--root", type=Path, default=Path.cwd())
+    record.add_argument("run", nargs=argparse.REMAINDER, metavar="-- COMMAND", help="command to run and record")
+
+    status = commands.add_parser("status", help="show phase, state, gate criteria, next step and current revision")
+    status.add_argument("--case", type=Path, required=True)
+    status.add_argument("--routing", type=Path, default=Path("docs/masp/masp-routing.toml"))
+    status.add_argument("--root", type=Path, default=Path.cwd())
+
+    validate_doc = commands.add_parser(
+        "validate-document",
+        help="check that a Markdown evidence file contains non-empty sections for gate criteria (STATIC only)",
+    )
+    validate_doc.add_argument("--file", type=Path, required=True)
+    validate_doc.add_argument("--gate", choices=sorted(GATE_REQUIREMENTS), required=True)
+    validate_doc.add_argument("--satisfies", help="optional comma-separated subset/extra criteria to check")
+    validate_doc.add_argument("--root", type=Path, default=Path.cwd())
+
+    dispatch = commands.add_parser(
+        "dispatch-plan",
+        help="emit a read-only/runtime-aware subagent dispatch contract for a MASP phase (STATIC only)",
+    )
+    dispatch.add_argument("--phase", required=True, help="phase id or name (e.g. observacao or Observação)")
+    dispatch.add_argument("--runtime", choices=SUPPORTED_RUNTIMES, default="codex")
+    dispatch.add_argument("--objective", default="")
+    dispatch.add_argument("--routing", type=Path, default=Path("docs/masp/masp-routing.toml"))
     validate_case_parser = commands.add_parser("validate-case", help="validate a case manifest and ledger")
     validate_case_parser.add_argument("--case", type=Path, required=True)
     validate_case_parser.add_argument("--routing", type=Path, default=Path("docs/masp/masp-routing.toml"))
@@ -698,7 +748,57 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "case-revision":
             print(f"SHA256: {case_revision(args.case.read_bytes())}")
             return 0
+        if args.command == "validate-document":
+            doc_path = _within_root(args.file, args.root)
+            if not doc_path.is_file():
+                raise ValueError(f"document file does not exist: {args.file}")
+            criteria = set(GATE_REQUIREMENTS[args.gate])
+            if args.satisfies:
+                criteria |= {item.strip() for item in args.satisfies.split(",") if item.strip()}
+            issues = check_markdown_criteria(doc_path.read_text(encoding="utf-8-sig", errors="replace"), criteria)
+            if issues:
+                print(f"STATIC: {len(issues)} erro(s) estruturais no documento {args.file}")
+                for issue in issues:
+                    print(f"- {issue}")
+                return 1
+            print(f"STATIC: documento {args.file} cobre as seções do gate {args.gate}; conteúdo não é autenticado")
+            return 0
+        if args.command == "record-evidence":
+            root = Path(args.root).resolve()
+            output_path = _within_root(args.output, root)
+            run = list(args.run or [])
+            if run and run[0] == "--":
+                run = run[1:]
+            with _case_lock(output_path):
+                existing = _read_json(output_path) if output_path.exists() and not args.reset else None
+                log = args.log
+                if run and log is None:
+                    log = output_path.with_name(next_log_name(output_path, existing, args.reset))
+                record = build_evidence_record(
+                    root, description=args.description, file=args.file,
+                    classification=args.classification, evidence_id=args.id, gate=args.gate,
+                    satisfies=args.satisfies, meta=args.meta, command=run or None,
+                    log=log, timeout=args.timeout, from_git_diff=args.from_git_diff,
+                )
+                merged = merge_evidence(existing, record, reset=args.reset)
+                _write_json_atomic(output_path, merged)
+            detail = f"; exit_code={record['exit_code']}" if "exit_code" in record else ""
+            print(f"{record['classification']}: evidência {record['id']} registrada em {output_path} "
+                  f"({len(merged)} no total); sha256={record['sha256'][:12]}…{detail}; "
+                  "o registro não autentica quem a produziu")
+            return 0
         routing = load_routing(args.routing)
+        if args.command == "dispatch-plan":
+            plan = plan_phase_dispatch(args.phase, routing, runtime=args.runtime, objective=args.objective)
+            print(json.dumps(plan, ensure_ascii=False, indent=2))
+            return 1 if plan.get("status") == "BLOCKED" else 0
+        if args.command == "status":
+            status_path = _within_root(args.case, args.root)
+            status_raw = status_path.read_bytes()
+            status_case = json.loads(status_raw.decode("utf-8-sig"))
+            for line in summarize_case(status_case, routing, args.root, status_raw):
+                print(line)
+            return 0
         if args.command == "validate-routing":
             errors = _effective_config_errors(routing, args.routing, Path.cwd())
             if errors:
